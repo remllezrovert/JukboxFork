@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image and File Upload</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.css">
+    <style>
+        .image-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .image-item, .file-item {
+            border: 1px solid #ccc;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: move; /* Indicate draggable items */
+        }
+        .delete-button {
+            margin-top: 5px;
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload and View Images and Files</h1>
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="files" multiple required> <!-- Allow multiple file uploads -->
+        <button type="submit">Upload</button>
+    </form>
+
+    <h2>Uploaded Images</h2>
+    <div class="image-container" id="imageContainer">
+        {% for image in images %}
+            <div class="image-item">
+                <img src="media/images/{{ image }}" alt="Uploaded Image" style="max-width: 300px; max-height: 300px;">
+                <form action="" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="delete" value="{{ image }}">
+                    <button type="submit" class="delete-button">Delete</button>
+                </form>
+            </div>
+        {% empty %}
+            <p>No images uploaded yet.</p>
+        {% endfor %}
+    </div>
+
+    <h2>Uploaded Files</h2>
+    <div class="file-container">
+        {% for file in files %}
+            <div class="file-item">
+                <span>{{ file }}</span>
+                <form action="" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="process" value="{{ file }}">
+                    <button type="submit" class="process-button">Process</button>
+                </form>
+                <form action="" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="delete" value="{{ file }}">
+                    <button type="submit" class="delete-button">Delete</button>
+                </form>
+            </div>
+        {% empty %}
+            <p>No files uploaded yet.</p>
+        {% endfor %}
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const imageContainer = document.getElementById('imageContainer');
+            dragula([imageContainer]);
+        });
+    </script>
+</body>
+</html>
