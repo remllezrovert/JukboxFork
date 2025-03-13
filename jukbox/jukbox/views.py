@@ -3,6 +3,7 @@ from django.conf import settings
 from django.shortcuts import render, redirect
 from .forms import FileUploadForm 
 from .process import generate_spectrogram  
+from django.http import FileResponse
 
 def image_list(request):
     if request.method == 'POST':
@@ -60,3 +61,6 @@ def image_list(request):
     }
 
     return render(request, 'jukbox/image_list.html', context)
+
+
+

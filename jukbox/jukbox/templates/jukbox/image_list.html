@@ -17,7 +17,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            cursor: move; /* Indicate draggable items */
+            cursor: move;
         }
         .delete-button {
             margin-top: 5px;
@@ -27,35 +27,35 @@
             padding: 5px 10px;
             cursor: pointer;
         }
+        .iframe-container {
+            display: none; /* Initially hidden */
+            margin-top: 20px;
+        }
+        .toggle-button {
+            cursor: pointer;
+            color: black;
+            width: 20%;
+            height: 15%;
+        }
     </style>
 </head>
 <body>
-    <h1>Upload and View Images and Files</h1>
+
+    <h1>Upload and View Geophone Data</h1>
+    <button type="button" class="toggle-button" onclick="toggleIframe()">Toggle Map</button>
+    <div class="iframe-container" id="iframeContainer">
+        <iframe width="90%" height="500" src="https://stationview.raspberryshake.org" style="display: flex;"></iframe>
+    </div>
+
+    <button type="button" class="toggle-button" onclick="toggleFiles()">Toggle Files</button>
 
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
-        <input type="file" name="files" multiple required> <!-- Allow multiple file uploads -->
+        <input type="file" name="files" multiple required id="file">
         <button type="submit">Upload</button>
     </form>
 
-    <h2>Uploaded Images</h2>
-    <div class="image-container" id="imageContainer">
-        {% for image in images %}
-            <div class="image-item">
-                <img src="media/images/{{ image }}" alt="Uploaded Image" style="max-width: 300px; max-height: 300px;">
-                <form action="" method="post" style="display:inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="delete" value="{{ image }}">
-                    <button type="submit" class="delete-button">Delete</button>
-                </form>
-            </div>
-        {% empty %}
-            <p>No images uploaded yet.</p>
-        {% endfor %}
-    </div>
-
-    <h2>Uploaded Files</h2>
-    <div class="file-container">
+    <div class="file-container" id="file-container" style="display: none;">
         {% for file in files %}
             <div class="file-item">
                 <span>{{ file }}</span>
@@ -75,12 +75,68 @@
         {% endfor %}
     </div>
 
+    <div class="image-container" id="imageContainer">
+        {% for image in images %}
+            <div class="image-item">
+                <img src="media/images/{{ image }}" alt="Uploaded Image" style="max-width: 600px; max-height: 500px;" width="25%" height="25%">
+                <form action="" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="delete" value="{{ image }}">
+                    <button type="submit" class="delete-button">Delete</button>
+                </form>
+            </div>
+        {% empty %}
+            <p>No images uploaded yet.</p>
+        {% endfor %}
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const imageContainer = document.getElementById('imageContainer');
-            dragula([imageContainer]);
+            const drake = dragula([imageContainer]);
+
+            let isDragging = false;
+
+            // trying to add better touchscreen support
+            imageContainer.addEventListener('touchstart', (event) => {
+                isDragging = false;
+                const target = event.target.closest('.image-item');
+                if (target) {
+                    target.classList.add('hold');
+                    setTimeout(() => {
+                        if (target.classList.contains('hold')) {
+                            drake.start(target);
+                            isDragging = true;
+                        }
+                    }, 300);
+                }
+            });
+
+            imageContainer.addEventListener('touchmove', () => {
+                if (isDragging) {
+                    drake.cancel();
+                    isDragging = false;
+                }
+            });
+
+            imageContainer.addEventListener('touchend', (event) => {
+                const target = event.target.closest('.image-item');
+                if (target) {
+                    target.classList.remove('hold');
+                }
+            });
         });
+
+        function toggleIframe() {
+            const iframeContainer = document.getElementById('iframeContainer');
+            iframeContainer.style.display = iframeContainer.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleFiles() {
+            const fileContainer = document.getElementById('file-container');
+            fileContainer.style.display = fileContainer.style.display === 'none' ? 'block' : 'none';
+        }
     </script>
 </body>
 </html>

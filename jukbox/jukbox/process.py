@@ -29,7 +29,7 @@ def generate_spectrogram(filePath):
 
     plt.figure(figsize=(10, 6))
     plt.specgram(trace.data, Fs=trace.stats.sampling_rate, NFFT=1024, noverlap=512, scale='dB', sides='default', cmap='magma')
-    plt.title("Spectrogram (Z Component)")
+    plt.title(filePath.split('/')[-1])
     plt.xlabel("Time (s)")
     plt.ylabel("Frequency (Hz)")
 
