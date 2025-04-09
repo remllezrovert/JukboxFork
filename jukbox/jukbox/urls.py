@@ -1,4 +1,5 @@
 from .views import image_list
+from jukbox import views
 """
 URL configuration for jukbox project.
 
@@ -25,5 +26,7 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('record/', views.record_view, name='record-view'),
     path('', image_list, name='image_list'),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

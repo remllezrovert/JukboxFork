@@ -1,9 +1,10 @@
 import os
+from datetime import datetime
 from django.conf import settings
 from django.shortcuts import render, redirect
-from .forms import FileUploadForm 
-from .process import generate_spectrogram  
-from django.http import FileResponse
+from .forms import FileUploadForm
+from .process import generate_spectrogram
+from django.http import JsonResponse  # For sending JSON responses
 
 def image_list(request):
     if request.method == 'POST':
@@ -62,5 +63,18 @@ def image_list(request):
 
     return render(request, 'jukbox/image_list.html', context)
 
+def record_view(request):
+    if request.method == 'POST':
+        # Get the fileName from the POST data
+        file_name = request.POST.get('fileName')
+        if not file_name:
+            file_name = str(datetime.now()).strip().replace(".","_").replace(" ", "_") + ".mseed"
+        else:
+            file_name = file_name.replace(" ", "_").replace(".","_") + ".mseed"
 
+        print(f"Recording started with file name: {file_name}")
+        return JsonResponse({'status': 'success', 'message': f'Recording started for {file_name}'})
+        
+        
 
+    return JsonResponse({'status': 'error', 'message': 'Invalid request.'})

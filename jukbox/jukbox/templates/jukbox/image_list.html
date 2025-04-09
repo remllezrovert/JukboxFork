@@ -6,10 +6,18 @@
     <title>Image and File Upload</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.css">
     <style>
-        .image-container {
+        .columns {
+            display: flex;
+            gap: 10px;
+        }
+        .image-column {
+            flex: 1;
             display: flex;
             flex-direction: column;
             gap: 10px;
+            min-height: 100px;
+            border: 1px dashed #ccc;
+            padding: 10px;
         }
         .image-item, .file-item {
             border: 1px solid #ccc;
@@ -19,6 +27,12 @@
             align-items: center;
             cursor: move;
         }
+
+        .image-item img {
+            max-width: 100%;
+            height: auto;
+        }
+
         .delete-button {
             margin-top: 5px;
             background-color: red;
@@ -27,116 +41,208 @@
             padding: 5px 10px;
             cursor: pointer;
         }
+
         .iframe-container {
-            display: none; /* Initially hidden */
+            display: none;
             margin-top: 20px;
         }
+
         .toggle-button {
             cursor: pointer;
             color: black;
             width: 20%;
             height: 15%;
         }
+
+        #recButton {
+            width: 50px;
+            height: 50px;
+            font-size: 0;
+            border: 0;
+            border-radius: 50%;
+            margin: 18px;
+            outline: none;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        .notRec {
+            background-color: #800000;
+        }
+
+        .Rec {
+            background-color: #ff0000;
+            animation-name: pulse;
+            animation-duration: 1.5s;
+            animation-iteration-count: infinite;
+            animation-timing-function: linear;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        #timer {
+            font-size: 24px;
+            margin-top: 20px;
+            color: black;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Upload and View Geophone Data</h1>
-    <button type="button" class="toggle-button" onclick="toggleIframe()">Toggle Map</button>
-    <div class="iframe-container" id="iframeContainer">
-        <iframe width="90%" height="500" src="https://stationview.raspberryshake.org" style="display: flex;"></iframe>
-    </div>
+<p>Click the button to start/stop recording</p>
 
-    <button type="button" class="toggle-button" onclick="toggleFiles()">Toggle Files</button>
+<form id="fileNameForm" method="POST">
+    {% csrf_token %}
+    <input type="text" id="fileName" name="fileName" placeholder="Enter file name" required />
+    <button type="button" id="recButton" class="notRec"></button>
+</form>
 
-    <form method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
-        <input type="file" name="files" multiple required id="file">
-        <button type="submit">Upload</button>
-    </form>
+<div id="timer">00:00:00</div>
 
-    <div class="file-container" id="file-container" style="display: none;">
-        {% for file in files %}
-            <div class="file-item">
-                <span>{{ file }}</span>
-                <form action="" method="post" style="display:inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="process" value="{{ file }}">
-                    <button type="submit" class="process-button">Process</button>
-                </form>
-                <form action="" method="post" style="display:inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="delete" value="{{ file }}">
-                    <button type="submit" class="delete-button">Delete</button>
-                </form>
-            </div>
-        {% empty %}
-            <p>No files uploaded yet.</p>
-        {% endfor %}
-    </div>
+<h1>Upload and View Geophone Data</h1>
+<button type="button" class="toggle-button" onclick="toggleIframe()">Toggle Map</button>
+<div class="iframe-container" id="iframeContainer">
+    <iframe width="90%" height="500" src="https://stationview.raspberryshake.org" style="display: flex;"></iframe>
+</div>
 
-    <div class="image-container" id="imageContainer">
+<button type="button" class="toggle-button" onclick="toggleFiles()">Toggle Files</button>
+
+<form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="files" multiple required id="file">
+    <button type="submit">Upload</button>
+</form>
+
+<div class="file-container" id="file-container" style="display: none;">
+    {% for file in files %}
+        <div class="file-item">
+            <span>{{ file }}</span>
+            <form action="" method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="process" value="{{ file }}">
+                <button type="submit" class="process-button">Process</button>
+            </form>
+            <form action="" method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="delete" value="{{ file }}">
+                <button type="submit" class="delete-button">Delete</button>
+            </form>
+        </div>
+    {% empty %}
+        <p>No files uploaded yet.</p>
+    {% endfor %}
+</div>
+
+<!-- Two Column Image Layout -->
+<div class="columns" id="imageContainer">
+    <div class="image-column" id="column1">
         {% for image in images %}
-            <div class="image-item">
-                <img src="media/images/{{ image }}" alt="Uploaded Image" style="max-width: 600px; max-height: 500px;" width="25%" height="25%">
-                <form action="" method="post" style="display:inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="delete" value="{{ image }}">
-                    <button type="submit" class="delete-button">Delete</button>
-                </form>
-            </div>
-        {% empty %}
-            <p>No images uploaded yet.</p>
+            {% if forloop.counter0|divisibleby:2 %}
+                <div class="image-item">
+                    <img src="media/images/{{ image }}" alt="Uploaded Image">
+                    <form action="" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete" value="{{ image }}">
+                        <button type="submit" class="delete-button">Delete</button>
+                    </form>
+                </div>
+            {% endif %}
         {% endfor %}
     </div>
+    <div class="image-column" id="column2">
+        {% for image in images %}
+            {% if not forloop.counter0|divisibleby:2 %}
+                <div class="image-item">
+                    <img src="media/images/{{ image }}" alt="Uploaded Image">
+                    <form action="" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete" value="{{ image }}">
+                        <button type="submit" class="delete-button">Delete</button>
+                    </form>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const imageContainer = document.getElementById('imageContainer');
-            const drake = dragula([imageContainer]);
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"></script>
+<script>
+    let timerInterval;
+    let totalSeconds = 0;
 
-            let isDragging = false;
+    function formatTime(seconds) {
+        const hours = String(Math.floor(seconds / 3600)).padStart(2, '0');
+        const minutes = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+        const secs = String(seconds % 60).padStart(2, '0');
+        return `${hours}:${minutes}:${secs}`;
+    }
 
-            // trying to add better touchscreen support
-            imageContainer.addEventListener('touchstart', (event) => {
-                isDragging = false;
-                const target = event.target.closest('.image-item');
-                if (target) {
-                    target.classList.add('hold');
-                    setTimeout(() => {
-                        if (target.classList.contains('hold')) {
-                            drake.start(target);
-                            isDragging = true;
-                        }
-                    }, 300);
-                }
-            });
+    $(document).ready(function() {
+        dragula([document.getElementById('column1'), document.getElementById('column2')]);
 
-            imageContainer.addEventListener('touchmove', () => {
-                if (isDragging) {
-                    drake.cancel();
-                    isDragging = false;
-                }
-            });
+        $('#recButton').click(function() {
+            const isRecording = $(this).hasClass('Rec');
+            const fileName = $('#fileName').val();
 
-            imageContainer.addEventListener('touchend', (event) => {
-                const target = event.target.closest('.image-item');
-                if (target) {
-                    target.classList.remove('hold');
-                }
-            });
+            if (!isRecording) {
+                $(this).removeClass('notRec').addClass('Rec');
+                console.log('Recording started');
+
+                $.ajax({
+                    type: 'POST',
+                    url: '{% url "record-view" %}',
+                    data: {
+                        'fileName': fileName,
+                        'csrfmiddlewaretoken': $('input[name="csrfmiddlewaretoken"]').val()
+                    },
+                    success: function(response) {
+                        console.log(response.message);
+                        startTimer();
+                    },
+                    error: function() {
+                        alert('Error starting recording');
+                    }
+                });
+
+            } else {
+                $(this).removeClass('Rec').addClass('notRec');
+                console.log('Recording stopped');
+                stopTimer();
+            }
         });
+    });
 
-        function toggleIframe() {
-            const iframeContainer = document.getElementById('iframeContainer');
-            iframeContainer.style.display = iframeContainer.style.display === 'none' ? 'block' : 'none';
-        }
+    function startTimer() {
+        timerInterval = setInterval(function() {
+            totalSeconds++;
+            $('#timer').text(formatTime(totalSeconds));
+            if (totalSeconds >= 86400) {
+                stopTimer();
+                alert('Timer reached 24 hours');
+            }
+        }, 1000);
+    }
 
-        function toggleFiles() {
-            const fileContainer = document.getElementById('file-container');
-            fileContainer.style.display = fileContainer.style.display === 'none' ? 'block' : 'none';
-        }
-    </script>
+    function stopTimer() {
+        clearInterval(timerInterval);
+        totalSeconds = 0;
+        $('#timer').text(formatTime(totalSeconds));
+    }
+
+    function toggleIframe() {
+        const iframeContainer = document.getElementById('iframeContainer');
+        iframeContainer.style.display = iframeContainer.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleFiles() {
+        const fileContainer = document.getElementById('file-container');
+        fileContainer.style.display = fileContainer.style.display === 'none' ? 'block' : 'none';
+    }
+</script>
 </body>
 </html>
