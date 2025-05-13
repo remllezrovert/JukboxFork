@@ -1,0 +1,7 @@
+*.csv
+*.mseed
+__pycache__
+Samples
+Test
+assets
+

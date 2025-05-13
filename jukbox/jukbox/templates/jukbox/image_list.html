@@ -27,12 +27,10 @@
             align-items: center;
             cursor: move;
         }
-
         .image-item img {
             max-width: 100%;
             height: auto;
         }
-
         .delete-button {
             margin-top: 5px;
             background-color: red;
@@ -41,19 +39,16 @@
             padding: 5px 10px;
             cursor: pointer;
         }
-
         .iframe-container {
             display: none;
             margin-top: 20px;
         }
-
         .toggle-button {
             cursor: pointer;
             color: black;
             width: 20%;
             height: 15%;
         }
-
         #recButton {
             width: 50px;
             height: 50px;
@@ -64,11 +59,9 @@
             outline: none;
             transition: background-color 0.3s ease, transform 0.3s ease;
         }
-
         .notRec {
             background-color: #800000;
         }
-
         .Rec {
             background-color: #ff0000;
             animation-name: pulse;
@@ -76,13 +69,11 @@
             animation-iteration-count: infinite;
             animation-timing-function: linear;
         }
-
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.1); }
             100% { transform: scale(1); }
         }
-
         #timer {
             font-size: 24px;
             margin-top: 20px;
@@ -93,17 +84,25 @@
 </head>
 <body>
 
-<p>Click the button to start/stop recording</p>
+<h2>Start Recording</h2>
 
-<form id="fileNameForm" method="POST">
+
+
+<div id="spectrogramContainer" style="margin-top: 30px; display: none;">
+    <h3>Live Spectrogram</h3>
+    <img id="spectrogramStream" src="" width="800">
+</div>
+<form id="recordForm" method="POST">
     {% csrf_token %}
     <input type="text" id="fileName" name="fileName" placeholder="Enter file name" required />
+    <input type="time" id="countdownInput" step="1" required />
     <button type="button" id="recButton" class="notRec"></button>
 </form>
 
 <div id="timer">00:00:00</div>
 
 <h1>Upload and View Geophone Data</h1>
+
 <button type="button" class="toggle-button" onclick="toggleIframe()">Toggle Map</button>
 <div class="iframe-container" id="iframeContainer">
     <iframe width="90%" height="500" src="https://stationview.raspberryshake.org" style="display: flex;"></iframe>
@@ -173,7 +172,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"></script>
 <script>
     let timerInterval;
-    let totalSeconds = 0;
+    let remainingSeconds = 0;
 
     function formatTime(seconds) {
         const hours = String(Math.floor(seconds / 3600)).padStart(2, '0');
@@ -182,12 +181,44 @@
         return `${hours}:${minutes}:${secs}`;
     }
 
-    $(document).ready(function() {
+    function parseTimeToSeconds(timeStr) {
+        const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+        return (hours * 3600) + (minutes * 60) + seconds;
+    }
+
+    function startCountdown(seconds) {
+        remainingSeconds = seconds;
+        $('#timer').text(formatTime(remainingSeconds));
+
+        timerInterval = setInterval(() => {
+            remainingSeconds--;
+            $('#timer').text(formatTime(remainingSeconds));
+            if (remainingSeconds <= 0) {
+                clearInterval(timerInterval);
+                alert("Countdown completed!");
+            }
+        }, 1000);
+    }
+
+    function stopCountdown() {
+        clearInterval(timerInterval);
+        $('#timer').text("00:00:00");
+    }
+
+    $(document).ready(function () {
         dragula([document.getElementById('column1'), document.getElementById('column2')]);
 
-        $('#recButton').click(function() {
+        $('#recButton').click(function () {
             const isRecording = $(this).hasClass('Rec');
             const fileName = $('#fileName').val();
+            const timeStr = $('#countdownInput').val();
+
+            if (!fileName || !timeStr || timeStr.split(':').length < 3) {
+                alert("Please enter a valid file name and time (HH:MM:SS).");
+                return;
+            }
+
+            const duration = parseTimeToSeconds(timeStr);
 
             if (!isRecording) {
                 $(this).removeClass('notRec').addClass('Rec');
@@ -198,41 +229,26 @@
                     url: '{% url "record-view" %}',
                     data: {
                         'fileName': fileName,
+                        'duration': duration,
                         'csrfmiddlewaretoken': $('input[name="csrfmiddlewaretoken"]').val()
                     },
-                    success: function(response) {
-                        console.log(response.message);
-                        startTimer();
+                    success: function (response) {
+                        console.log("POST success:", response);
+                        startCountdown(duration);
                     },
-                    error: function() {
-                        alert('Error starting recording');
+                    error: function () {
+                        alert("Failed to send POST request.");
+                        $('#recButton').removeClass('Rec').addClass('notRec');
                     }
                 });
 
             } else {
                 $(this).removeClass('Rec').addClass('notRec');
                 console.log('Recording stopped');
-                stopTimer();
+                stopCountdown();
             }
         });
     });
-
-    function startTimer() {
-        timerInterval = setInterval(function() {
-            totalSeconds++;
-            $('#timer').text(formatTime(totalSeconds));
-            if (totalSeconds >= 86400) {
-                stopTimer();
-                alert('Timer reached 24 hours');
-            }
-        }, 1000);
-    }
-
-    function stopTimer() {
-        clearInterval(timerInterval);
-        totalSeconds = 0;
-        $('#timer').text(formatTime(totalSeconds));
-    }
 
     function toggleIframe() {
         const iframeContainer = document.getElementById('iframeContainer');
