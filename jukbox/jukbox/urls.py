@@ -28,6 +28,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('record/', views.record_view, name='record-view'),
     path('', image_list, name='image_list'),
-    path('stream-inline', views.stream_spectrogram_inline, name='stream-inline')
+    path('stream-inline', views.stream_spectrogram_inline, name='stream-inline'),
+    path('search_quakes/', views.search_quakes, name='search_quakes'),
+    path('map/', views.mapView, name='mapView')
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

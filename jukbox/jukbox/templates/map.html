@@ -1,0 +1,279 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<style>
+   /* Default styling for the slider */
+#magSlider {
+    width: 100%;
+    height: 8px;
+    background: var(--track-color, #ddd); /* Default track color */
+    border-radius: 10px;
+    -webkit-appearance: none; 
+    appearance: none;
+}
+
+/* Style the thumb (draggable part) */
+#magSlider::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--thumb-color, #ff9900); /* Default thumb color */
+    border: 2px solid #ff6600;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#magSlider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--thumb-color, #ffffff); /* Default thumb color */
+    border: 2px solid #ff6600;
+    cursor: pointer;
+}
+ 
+</style>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Include Folium/Leaflet.js libraries -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="{% static 'js/map.js' %}" defer></script>
+</head>
+
+<body>
+    
+    <!-- Folium Map is rendered here -->
+    <div id="map" style="height: 600px;"></div>
+    
+    
+    <!-- Dropdown for selecting client -->
+    <div style="margin-top: 20px;">
+        <label for="clientSelect">Select Client: </label>
+        <select id="clientSelect">
+            <option value="IRIS" selected>IRIS</option>
+            <option value="USGS" selected>USGS</option>
+
+    <!-- Slider for adjusting the circle radius -->
+    <div style="margin-top: 20px;">
+        <label for="radiusSlider">Circle Radius: </label>
+        <input type="range" id="radiusSlider" min="1" max="1000" value="300" step="10" style="width: 100%;">
+        <span id="radiusValue">300 km</span>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <label for="startDate">Start Date: </label>
+        <input type="date" id="startDate" value="1945-01-01" min="1945-01-01" max="{{ currentDate }}">
+        <label for="endDate">End Date: </label>
+        <input type="date" id="endDate" value="{{ currentDate }}" min="1945-01-01" max="{{ currentDate }}">
+        <span id="dateRangeDisplay">From 1945 to {{ currentDate }}</span>
+    </div>
+
+
+    <!-- Display the magnitude --> 
+    <div style="margin-top: 20px;">
+        <label for="magSlider">Minimum magnitude: </label>
+        <input type="range" id="magSlider" min="1" max="10" value="3" step="0.1" style="width: 100%;">
+        <span id="magValue">3</span>
+    </div>
+
+   <!-- Quake Search--> 
+    <div style="margin-top: 20px;">
+        <button id="searchButton" onclick="searchQuakes()">Search</button>
+    </div>
+
+
+
+    <script type="text/javascript">
+        // Initialize the map with the center coordinates passed from Django
+        var lat = {{ lat }};
+        var lng = {{ lng }};
+        
+        var map = L.map('map').setView([lat, lng], 14);
+
+        // Set up the tile layer (same as Folium default)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        var circle = L.circle([lat, lng], {
+            color: 'blue',
+            fillColor: '#30aaff',
+            fillOpacity: 0.5,
+            radius: 3000 // in meters
+        }).addTo(map);
+
+        // Add a click event listener to the map to update the circle position
+        map.on('click', function(e) {
+            var latLng = e.latlng;
+            circle.setLatLng(latLng);
+        });
+
+        // Handle the slider input event for radius
+        var radiusSlider = document.getElementById('radiusSlider');
+        var radiusValueDisplay = document.getElementById('radiusValue');
+
+        radiusSlider.addEventListener('input', function() {
+            var radius = radiusSlider.value;
+            circle.setRadius(radius * 1000); // Update the circle's radius
+            radiusValueDisplay.textContent = radius + " km"; // Display the current radius
+        });
+
+
+        //handle the slider input event for magnitude
+        var magSlider = document.getElementById('magSlider');
+        var magValueDisplay = document.getElementById('magValue');
+        // Function to update the slider's appearance dynamically
+        function updateSliderAppearance(magnitude) {
+            // Update the value display
+            magValueDisplay.textContent = magnitude;
+
+            var thumbColor;
+            magnitude = parseFloat(magnitude);
+            if (magnitude < 2) {
+                magValueDisplay.style.color = 'blue'; // Low magnitude
+                thumbColor = 'blue'; // Blue for low magnitude
+            } else if (magnitude < 4) {
+                magValueDisplay.style.color = 'green'; // Low to moderate magnitude
+                thumbColor = 'green';
+            } else if (magnitude < 6) {
+                magValueDisplay.style.color = 'yellow'; // Moderate magnitude
+                thumbColor = 'yellow';
+            } else if (magnitude < 8) {
+                magValueDisplay.style.color = 'red'; // High magnitude
+                thumbColor = 'red';
+            } else {
+                magValueDisplay.style.color = 'black'; // Very high magnitude
+                thumbColor = 'black';
+            }
+
+
+
+            magSlider.style.setProperty('--thumb-color', thumbColor);
+
+            //magSlider.style.setProperty('--track-color', trackColor);
+        }
+                magSlider.addEventListener('input', function() {
+                    var magnitude = magSlider.value;
+                    magValueDisplay.textContent = magnitude; // Display the current magnitude
+                    updateSliderAppearance(magnitude);
+                });
+    
+updateSliderAppearance(magSlider.value);
+
+
+
+
+        // Date range logic
+        var startDateInput = document.getElementById('startDate');
+        var endDateInput = document.getElementById('endDate');
+        var dateRangeDisplay = document.getElementById('dateRangeDisplay');
+
+        // Set the current date
+        var currentDate = new Date().toISOString().split('T')[0];
+        document.getElementById('startDate').setAttribute('max', currentDate);
+        document.getElementById('endDate').setAttribute('max', currentDate);
+
+        // Ensure that the start date is always less than the end date
+        function updateDateRange() {
+            var startDate = startDateInput.value;
+            var endDate = endDateInput.value;
+
+            // swap start and end dates if user tries to set end date before start date
+            if (startDate && endDate && startDate > endDate) {
+                endDateInput.setCustomValidity("End date must be later than start date");
+                tmp = endDateInput.value;
+                endDateInput.value = startDate;
+                startDateInput.value = tmp;
+            } else {
+                endDateInput.setCustomValidity("");
+            }
+
+            // Display the selected date range
+            dateRangeDisplay.textContent = "From " + startDate + " to " + endDate;
+        }
+
+        // Event listeners for date range inputs
+        startDateInput.addEventListener('change', updateDateRange);
+        endDateInput.addEventListener('change', updateDateRange);
+
+        // Initialize date range display
+        updateDateRange();
+
+
+    const searchQuakes = async function() {
+    let latLng = circle.getLatLng();
+    var radius = radiusSlider.value;
+    var startDate = startDateInput.value;
+    var endDate = endDateInput.value;
+    var magnitude = magSlider.value;
+    var clientSelect = document.getElementById('clientSelect').value;
+
+    var searchData = {
+        lat: latLng.lat,
+        lng: latLng.lng,
+        radius: radius,
+        startDate: startDate,
+        endDate: endDate,
+        magnitude: magnitude,
+        selectedClient: clientSelect
+    };
+
+    try {
+        const response = await fetch('/search_quakes/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(searchData)
+        });
+
+        const result = await response.json();
+        console.log('Search completed:', result);
+
+        const events = Array.isArray(result.events)
+        ? result.events
+        : result.events ? [result.events] : [];
+
+        const stations = Array.isArray(result.stations)
+        ? result.stations
+        : result.stations ? [result.stations] : [];
+
+
+        await saveArrayToStoreIndexedDB("eventStore", events);
+        await saveArrayToStoreIndexedDB("stationStore", stations);
+        getAllEvents().then(events => {
+            plotPoints(events)
+        });
+        //await saveArrayToStoreIndexedDB("waveStore", result.data);
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while searching!');
+    }
+};
+
+  
+
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+
+    </script>
+</body>
+</html>

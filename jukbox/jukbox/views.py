@@ -1,9 +1,12 @@
+import json
 import os
 import io
 import time
+from jukbox.Map import Map
 from datetime import datetime
 from django.conf import settings
 from django.shortcuts import render, redirect
+import folium
 from .forms import FileUploadForm
 from .process import generate_spectrogram
 from django.http import JsonResponse, StreamingHttpResponse
@@ -12,6 +15,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from PIL import Image
 import obspy
+from django.shortcuts import render
+from django.contrib.gis import geos
+from django.views.decorators.csrf import csrf_exempt
 
 
 def image_list(request):
@@ -140,3 +146,64 @@ def stream_spectrogram_inline(request):
         return JsonResponse({'status': 'error', 'message': 'File not found'}, status=404)
 
     return StreamingHttpResponse(spectrogram_stream(file_path), content_type='multipart/x-mixed-replace; boundary=frame')
+
+
+
+
+def mapView(request):
+    lat = 49.17
+    lng = -123.96
+    
+    # Generate the map with Folium
+    foliumMap = folium.Map(
+        location=[lat, lng],
+        zoom_start=5,
+        attr="Mapbox"
+    )
+    # Render map as HTML (don't render circle in Python, we'll do it in JavaScript)
+    mapHtml = foliumMap._repr_html_()
+
+    return render(request, 'map.html', {'mapHtml': mapHtml, 'lat': lat, 'lng': lng})
+@csrf_exempt
+def search_quakes(request):
+    if request.method == 'POST':
+        print("Received POST request for earthquake search")
+        try:
+            map = Map()
+            # Get the data from the POST request (JSON format)
+            search_data = json.loads(request.body)
+
+            print(f"Search data received: {search_data}")
+            # Extract the search parameters
+            map.lat = search_data.get('lat')
+            map.lon = search_data.get('lng')
+            map.currentRadius = int(search_data.get('radius'))
+            map.dateRange = datetime.strptime(search_data.get('startDate'), '%Y-%m-%d'),datetime.strptime(search_data.get('endDate'), '%Y-%m-%d')
+            map.minMag = search_data.get('magnitude')
+            map.selectedClient = search_data.get('selectedClient')
+
+            searchResults = map.eventSearch()
+            for event in searchResults.get('events', []):
+                event['starttime'] = event['starttime'].strftime('%Y-%m-%d %H:%M:%S')
+                event['endtime'] = event['endtime'].strftime('%Y-%m-%d %H:%M:%S')
+            
+            
+            response_data = {
+                'status': 'success',
+                'message': f'Search completed for magnitude {map.minMag}.',
+                'stations': searchResults.get('stations', []),  # Include the stations in the response
+                'events': searchResults.get('events', []),  # Include the events in the response
+                'data': searchResults.get('data', [])  # Include the data in the response
+            }
+
+
+            return JsonResponse(response_data, status=200)
+
+        except Exception as e:
+            # If something goes wrong, return an error message (without displaying it)
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+            
+            
+            
+
