@@ -235,17 +235,12 @@ updateSliderAppearance(magSlider.value);
         const result = await response.json();
         console.log('Search completed:', result);
 
-        const events = Array.isArray(result.events)
-        ? result.events
-        : result.events ? [result.events] : [];
+        const events = result.events;
 
-        const stations = Array.isArray(result.stations)
-        ? result.stations
-        : result.stations ? [result.stations] : [];
+        const stations = result.stations;
 
-
-        await saveArrayToStoreIndexedDB("eventStore", events);
-        await saveArrayToStoreIndexedDB("stationStore", stations);
+        await saveDictToStoreIndexedDB("eventStore", events);
+        await saveDictToStoreIndexedDB("stationStore", stations);
         getAllEvents().then(events => {
             plotPoints(events)
         });

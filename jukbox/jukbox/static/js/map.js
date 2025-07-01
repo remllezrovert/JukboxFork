@@ -40,6 +40,29 @@ async function saveArrayToStoreIndexedDB(storeName,items){
 
 
 
+async function saveDictToStoreIndexedDB(storeName,items){
+    console.log("Saving items to IndexedDB store:", storeName, items);
+    const db = await openDatabaseWithStores(["eventStore", "stationStore", "waveStore"]);
+    const tx = db.transaction([storeName], 'readwrite');
+    const store = tx.objectStore(storeName);
+
+  Object.entries(items).forEach(([key,value]) => {
+    store.put(value,key);
+  });
+
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+
+
+
+
+
+
+
 
 
 

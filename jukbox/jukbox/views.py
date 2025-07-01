@@ -183,16 +183,12 @@ def search_quakes(request):
             map.selectedClient = search_data.get('selectedClient')
 
             searchResults = map.eventSearch()
-            for event in searchResults.get('events', []):
-                event['starttime'] = event['starttime'].strftime('%Y-%m-%d %H:%M:%S')
-                event['endtime'] = event['endtime'].strftime('%Y-%m-%d %H:%M:%S')
-            
             
             response_data = {
                 'status': 'success',
                 'message': f'Search completed for magnitude {map.minMag}.',
-                'stations': searchResults.get('stations', []),  # Include the stations in the response
-                'events': searchResults.get('events', []),  # Include the events in the response
+                'stations': searchResults.get('stations', {}),  # Include the stations in the response
+                'events': searchResults.get('events', {}),  # Include the events in the response
                 'data': searchResults.get('data', [])  # Include the data in the response
             }
 
@@ -205,5 +201,7 @@ def search_quakes(request):
 
             
             
-            
+def fetch_waves(request):
+    if request.method == 'POST':
+        print("Received POST request for fetching waves")
 
