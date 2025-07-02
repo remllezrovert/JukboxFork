@@ -38,10 +38,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Include Folium/Leaflet.js libraries -->
+
+        <script type="module">
+            import * as sp from "{% static 'js/seisplotjs_3.1.4_standalone.mjs' %}";
+            window.sp = sp;
+        </script>
+
+
+
+        <script>
+        window.addEventListener("load", () => {
+            console.log("window.sp:", window.sp);
+        });
+        </script>
+
+
+        <script src="{% static 'js/map.js' %}" defer></script>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="{% static 'js/map.js' %}" defer></script>
 </head>
 
 <body>
@@ -85,16 +100,14 @@
         <button id="searchButton" onclick="searchQuakes()">Search</button>
     </div>
 
-
+    <div id="myseismograph"></div>
 
     <script type="text/javascript">
-        // Initialize the map with the center coordinates passed from Django
         var lat = {{ lat }};
         var lng = {{ lng }};
         
         var map = L.map('map').setView([lat, lng], 14);
 
-        // Set up the tile layer (same as Folium default)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
@@ -106,47 +119,42 @@
             radius: 3000 // in meters
         }).addTo(map);
 
-        // Add a click event listener to the map to update the circle position
         map.on('click', function(e) {
             var latLng = e.latlng;
             circle.setLatLng(latLng);
         });
 
-        // Handle the slider input event for radius
         var radiusSlider = document.getElementById('radiusSlider');
         var radiusValueDisplay = document.getElementById('radiusValue');
 
         radiusSlider.addEventListener('input', function() {
             var radius = radiusSlider.value;
-            circle.setRadius(radius * 1000); // Update the circle's radius
-            radiusValueDisplay.textContent = radius + " km"; // Display the current radius
+            circle.setRadius(radius * 1000);
+            radiusValueDisplay.textContent = radius + " km";
         });
 
 
-        //handle the slider input event for magnitude
         var magSlider = document.getElementById('magSlider');
         var magValueDisplay = document.getElementById('magValue');
-        // Function to update the slider's appearance dynamically
         function updateSliderAppearance(magnitude) {
-            // Update the value display
             magValueDisplay.textContent = magnitude;
 
             var thumbColor;
             magnitude = parseFloat(magnitude);
             if (magnitude < 2) {
-                magValueDisplay.style.color = 'blue'; // Low magnitude
-                thumbColor = 'blue'; // Blue for low magnitude
+                magValueDisplay.style.color = 'blue';
+                thumbColor = 'blue';
             } else if (magnitude < 4) {
-                magValueDisplay.style.color = 'green'; // Low to moderate magnitude
+                magValueDisplay.style.color = 'green';
                 thumbColor = 'green';
             } else if (magnitude < 6) {
-                magValueDisplay.style.color = 'yellow'; // Moderate magnitude
+                magValueDisplay.style.color = 'yellow';
                 thumbColor = 'yellow';
             } else if (magnitude < 8) {
-                magValueDisplay.style.color = 'red'; // High magnitude
+                magValueDisplay.style.color = 'red';
                 thumbColor = 'red';
             } else {
-                magValueDisplay.style.color = 'black'; // Very high magnitude
+                magValueDisplay.style.color = 'black';
                 thumbColor = 'black';
             }
 
@@ -158,7 +166,7 @@
         }
                 magSlider.addEventListener('input', function() {
                     var magnitude = magSlider.value;
-                    magValueDisplay.textContent = magnitude; // Display the current magnitude
+                    magValueDisplay.textContent = magnitude;
                     updateSliderAppearance(magnitude);
                 });
     
@@ -167,17 +175,14 @@ updateSliderAppearance(magSlider.value);
 
 
 
-        // Date range logic
         var startDateInput = document.getElementById('startDate');
         var endDateInput = document.getElementById('endDate');
         var dateRangeDisplay = document.getElementById('dateRangeDisplay');
 
-        // Set the current date
         var currentDate = new Date().toISOString().split('T')[0];
         document.getElementById('startDate').setAttribute('max', currentDate);
         document.getElementById('endDate').setAttribute('max', currentDate);
 
-        // Ensure that the start date is always less than the end date
         function updateDateRange() {
             var startDate = startDateInput.value;
             var endDate = endDateInput.value;
@@ -192,15 +197,12 @@ updateSliderAppearance(magSlider.value);
                 endDateInput.setCustomValidity("");
             }
 
-            // Display the selected date range
             dateRangeDisplay.textContent = "From " + startDate + " to " + endDate;
         }
 
-        // Event listeners for date range inputs
         startDateInput.addEventListener('change', updateDateRange);
         endDateInput.addEventListener('change', updateDateRange);
 
-        // Initialize date range display
         updateDateRange();
 
 

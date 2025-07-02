@@ -139,7 +139,7 @@ class Map:
         except FDSNNoDataException as e:
             print(f"No data found (204). Attempt {attempt}/{maxAttempts}")
             if attempt < maxAttempts:
-                return self.getStations(maxRad * 3, attempt + 1,maxAttempts)
+                return self.getStations(maxRad * 2, attempt + 1,maxAttempts)
             else:
                 print("Max retry attempts reached.")
                 return {}
@@ -189,6 +189,7 @@ class Map:
                             closestStations = self.stationSearchResults[eventId] 
                             closestStations.append({
                                 'seedId': seedId,
+                                'icon': f"/static/img/mapIcon.png",
                                 'lat': latitude,
                                 'lon': longitude,
                                 'distance': distance,
@@ -197,7 +198,7 @@ class Map:
                                 'starttime': starttime.isoformat(),
                                 'endtime': endtime.isoformat()
                             })
-                        break  # once matched and saved, break out of time window loop
+                        break
                     except Exception as e:
                         print(f"Error getting coordinates for {seedId} during window {starttime}–{endtime}: {e}")
 
@@ -210,6 +211,7 @@ class Map:
             #eventStations = []
             if self.selectedClient != "USGS":
                 for event in events:
+                    eventId = random.randint(100000, 999999)
                     origin = event.preferred_origin()
                     if origin is None:
                         print("No origin available for this event.") 
@@ -231,20 +233,23 @@ class Map:
                     starttime = event.origins[0].time - 5 * 60
                     endtime = event.origins[0].time + 1800
                     response = {
+                        'eventId': eventId,
                         'lat': origin.latitude,
                         'lon': origin.longitude,
                         'starttime':starttime,
                         'endtime':endtime,  # Convert to ISO format
                         ##"depth": origin.depth / 1000,  # Convert to km
-                        "mag": mag
+                        "mag": mag,
+                        "icon": f"http://localhost:8000/static/img/mapIcon.png"
                         ##"type": type
                     } 
 
-                    self.eventsById[random.randint(100000, 999999)] = response
+                    self.eventsById[eventId] = response
             else:
                 try:
                     eventCount = 0
                     for event in events:
+                        eventId = random.randint(100000, 999999)
                         if event.origins == None or len(event.origins) == 0:
                             print("No origin available for this event.") 
                             continue
@@ -264,7 +269,7 @@ class Map:
                             print("Incomplete moment tensor components.")
                             continue
 
-                        ballPath = f"./assets/img/beachballTmp/beachball{str(eventCount)}.png"
+                        ballPath = f"./jukbox/static/img/beachball{str(eventId)}.png"
                         newBall = beachball(components, size=50, facecolor=self.magToColor(event.preferred_magnitude().mag), outfile=ballPath)
                         matplotlib.pyplot.close(newBall)
 
@@ -281,20 +286,22 @@ class Map:
 
 
                         response = {
+                            'eventId': eventId,
                             'lat': origin.latitude,
-                            'lon': origin.logitude,
-                            'starttime': event.origins[0].time - 5 * 60,  # Convert to ISO format
-                            'endtime': event.origins[0].time + 1800,  # Convert to ISO format
-                            "depth": origin.depth / 1000,  # Convert to km
+                            'lon': origin.longitude,
+                            'starttime': event.origins[0].time - 5 * 60,
+                            'endtime': event.origins[0].time + 1800,
+                            "depth": origin.depth / 1000,
                             "mag": mag,
-                            "type": type
+                            "type": type,
+                            "icon": f"/static/img/beachball{str(eventId)}.png",
                         }
                         eventCount += 1
-                        self.eventsById[response['id']] = response
+                        self.eventsById[eventId] = response
                 except Exception as e:
                     raise e
             retEvents = copy.deepcopy(self.eventsById)
-            for eventId, ee in retEvents.items():
+            for id, ee in retEvents.items():
                 ee['starttime'] = ee['starttime'].strftime('%Y-%m-%d %H:%M:%S')
                 ee['endtime'] = ee['endtime'].strftime('%Y-%m-%d %H:%M:%S')
 
@@ -303,7 +310,6 @@ class Map:
                 stationEvents = []
                 for i in eventStation.arr:  stationEvents.append(i[1])
                 eventStations[eventStation.eventId] = stationEvents
-
             
             ret = {
                 'events': retEvents,
