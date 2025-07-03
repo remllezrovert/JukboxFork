@@ -13,7 +13,6 @@ from obspy.imaging.beachball import beachball
 from obspy.clients.fdsn.header import FDSNNoDataException
 
 from jukbox.Sample import Sample
-# This is an intentional crash to confirm that Django uses this file.
 
 
 
@@ -189,7 +188,7 @@ class Map:
                             closestStations = self.stationSearchResults[eventId] 
                             closestStations.append({
                                 'seedId': seedId,
-                                'icon': f"/static/img/mapIcon.png",
+                                'icon': f"/static/img/station.jpg",
                                 'lat': latitude,
                                 'lon': longitude,
                                 'distance': distance,
@@ -240,7 +239,7 @@ class Map:
                         'endtime':endtime,  # Convert to ISO format
                         ##"depth": origin.depth / 1000,  # Convert to km
                         "mag": mag,
-                        "icon": f"http://localhost:8000/static/img/mapIcon.png"
+                        "icon": f"/static/img/center.png"
                         ##"type": type
                     } 
 
