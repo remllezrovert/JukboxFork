@@ -31,7 +31,7 @@ SECRET_KEY = 'django-insecure-y7p9n31*t@s__2%9)f8&4=yekxcir9z)lt!3p$51!jpyh@vza0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["0.0.0.0","jukbox.remllez.com","localhost","192.168.1.11"]
 
 
 # Application definition
@@ -127,4 +127,11 @@ STATIC_URL = 'static/'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'jukbox', 'static'),
+]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+

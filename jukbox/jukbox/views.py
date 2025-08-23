@@ -149,7 +149,7 @@ def stream_spectrogram_inline(request):
 
 
 
-
+@csrf_exempt
 def mapView(request):
     lat = 49.17
     lng = -123.96
@@ -164,6 +164,7 @@ def mapView(request):
     mapHtml = foliumMap._repr_html_()
 
     return render(request, 'map.html', {'mapHtml': mapHtml, 'lat': lat, 'lng': lng})
+
 @csrf_exempt
 def search_quakes(request):
     if request.method == 'POST':

@@ -1,3 +1,5 @@
+import os
+import json
 import random
 import traceback
 import copy
@@ -6,15 +8,14 @@ import numpy as np
 import math
 import threading
 import heapq
-from datetime import datetime
+from datetime import datetime, timedelta
 from obspy.clients.fdsn import Client
 from obspy import UTCDateTime
 from obspy.imaging.beachball import beachball
 from obspy.clients.fdsn.header import FDSNNoDataException
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from jukbox.Sample import Sample
-
-
 
 
 class kClosest():
@@ -30,8 +31,10 @@ class kClosest():
         if index < 0 or index >= len(self.arr):
             raise IndexError("Index out of range")
         return self.arr[index][1]
+
     def __str__(self):
         return str(self.arr)
+
     def append(self, item):
         distance = item.get('distance')
         wrapper = (-1 * distance, item)
@@ -40,11 +43,7 @@ class kClosest():
             heapq.heappush(self.arr, wrapper)
         else:
             if wrapper[0] < self.arr[0][0]:
-                heapq.heappushpop(self.arr,wrapper)
-   
-
-
-
+                heapq.heappushpop(self.arr, wrapper)
 
 
 class Map:
@@ -53,23 +52,19 @@ class Map:
         self.lon = -74.0060
         self.currentRadius = 100
         self.eventsById = {}
-        self.dateRange = datetime(1945,1,1),datetime.now()
-        self.approvedChannels = ["BHZ","MXZ"]
+        self.dateRange = datetime(1945, 1, 1), datetime.now()
+        self.approvedChannels = ["BHZ", "MXZ"]
         self.approvedNetworks = ["IU", "II", "IC", "IM", "IR", "US", "CI", "NC", "PR", "AK"]
         self.lock = threading.Lock()
         self.stationSearchResults = {}
 
         self.selectedClient = "IRIS"
 
-        
-        
-        
-        
+        self.scheduler = BackgroundScheduler()
+        self.scheduler.start()
 
-   
     def getEvents(self, lat, lon, maxRad, client="IRIS"):
         #print('called getEvents')
-        #print(f"Client: {client}")
         client = Client(client)
         try:
             out = client.get_events(
@@ -108,8 +103,7 @@ class Map:
                     continue
                 nStr = ",".join(self.approvedNetworks)
                 cStr = ",".join(self.approvedChannels)
-                bulkParams.append(("*", "*", "*",cStr, start, end))
-
+                bulkParams.append(("*", "*", "*", cStr, start, end))
 
             stationList = client.get_stations_bulk(
                 bulkParams,
@@ -138,7 +132,7 @@ class Map:
         except FDSNNoDataException as e:
             print(f"No data found (204). Attempt {attempt}/{maxAttempts}")
             if attempt < maxAttempts:
-                return self.getStations(maxRad * 2, attempt + 1,maxAttempts)
+                return self.getStations(maxRad * 2, attempt + 1, maxAttempts)
             else:
                 print("Max retry attempts reached.")
                 return {}
@@ -148,10 +142,7 @@ class Map:
             traceback.print_exc()
             return {}
 
-
-
     def processNetwork(self, network, stationList, events, maxCount):
-        #self.stationSearchResults.
         for station in network:
             if not station.channels:
                 continue
@@ -185,10 +176,10 @@ class Map:
                         )
                         with self.lock:
                             stationsForEvent += 1
-                            closestStations = self.stationSearchResults[eventId] 
+                            closestStations = self.stationSearchResults[eventId]
                             closestStations.append({
                                 'seedId': seedId,
-                                'icon': f"/static/img/station.jpg",
+                                'icon': f"/static/jukbox/img/station.jpg",
                                 'lat': latitude,
                                 'lon': longitude,
                                 'distance': distance,
@@ -203,25 +194,18 @@ class Map:
 
     def eventSearch(self):
         try:
-            print(">>> CHECKPOINT: Using latest eventSearch function!")
             events = self.getEvents(self.lat, self.lon, self.currentRadius / 111.111, self.selectedClient)
+            icons = []
             if not events:
-                print("No earthquakes found in this area!") 
-            #eventStations = []
+                print("No earthquakes found in this area!")
             if self.selectedClient != "USGS":
                 for event in events:
                     eventId = random.randint(100000, 999999)
                     origin = event.preferred_origin()
                     if origin is None:
-                        print("No origin available for this event.") 
+                        print("No origin available for this event.")
                         events.remove(event)
                         continue
-                    
-                    #eventStations = self.getStations(event,self.lat, self.lon, self.currentRadius / 111.111, 0, 8)
-                    #if eventStations is None or len(eventStations) == 0:
-                        #print("No stations found in this area!") 
-                        #continue
-
 
                     mechanism = event.preferred_focal_mechanism()
                     if not mechanism and event.focal_mechanisms:
@@ -235,13 +219,11 @@ class Map:
                         'eventId': eventId,
                         'lat': origin.latitude,
                         'lon': origin.longitude,
-                        'starttime':starttime,
-                        'endtime':endtime,  # Convert to ISO format
-                        ##"depth": origin.depth / 1000,  # Convert to km
+                        'starttime': starttime,
+                        'endtime': endtime,
                         "mag": mag,
-                        "icon": f"/static/img/center.png"
-                        ##"type": type
-                    } 
+                        "icon": f"/static/jukbox/img/center.png"
+                    }
 
                     self.eventsById[eventId] = response
             else:
@@ -250,14 +232,14 @@ class Map:
                     for event in events:
                         eventId = random.randint(100000, 999999)
                         if event.origins == None or len(event.origins) == 0:
-                            print("No origin available for this event.") 
+                            print("No origin available for this event.")
                             continue
                         origin = event.preferred_origin()
                         mechanism = event.preferred_focal_mechanism()
                         if not mechanism and event.focal_mechanisms:
                             mechanism = event.focal_mechanisms[0]
                         if not mechanism or not mechanism.moment_tensor:
-                            print("No moment tensor available for this event.") 
+                            print("No moment tensor available for this event.")
                             continue
                         tensor = mechanism.moment_tensor.tensor
                         components = [
@@ -268,22 +250,15 @@ class Map:
                             print("Incomplete moment tensor components.")
                             continue
 
-                        ballPath = f"./jukbox/static/img/beachball{str(eventId)}.png"
+                        ballPath = f"./jukbox/static/jukbox/img/beachball{str(eventId)}.png"
                         newBall = beachball(components, size=50, facecolor=self.magToColor(event.preferred_magnitude().mag), outfile=ballPath)
                         matplotlib.pyplot.close(newBall)
-
-                        mechanism = event.preferred_focal_mechanism()
-                        if not mechanism and event.focal_mechanisms:
-                            mechanism = event.focal_mechanisms[0]
-                        if not mechanism or not mechanism.moment_tensor:
-                            print("No moment tensor available for this event.") 
-                            #mechanism = None
-                            continue
 
                         mag = event.preferred_magnitude().mag if event.preferred_magnitude() else None
                         type = str(event.event_type) if event.event_type else "event"
 
-
+                        iconPath = f"/static/jukbox/img/beachball{str(eventId)}.png"
+                        icons.append("jukbox" + iconPath)
                         response = {
                             'eventId': eventId,
                             'lat': origin.latitude,
@@ -293,12 +268,17 @@ class Map:
                             "depth": origin.depth / 1000,
                             "mag": mag,
                             "type": type,
-                            "icon": f"/static/img/beachball{str(eventId)}.png",
+                            "icon": iconPath
                         }
                         eventCount += 1
                         self.eventsById[eventId] = response
                 except Exception as e:
                     raise e
+            try:
+                self.scheduleFileDelete(icons)
+            except Exception as e:
+                print(f"Error scheduling file delete: {e}")
+
             retEvents = copy.deepcopy(self.eventsById)
             for id, ee in retEvents.items():
                 ee['starttime'] = ee['starttime'].strftime('%Y-%m-%d %H:%M:%S')
@@ -309,7 +289,7 @@ class Map:
                 stationEvents = []
                 for i in eventStation.arr:  stationEvents.append(i[1])
                 eventStations[eventStation.eventId] = stationEvents
-            
+
             ret = {
                 'events': retEvents,
                 'stations': eventStations
@@ -320,6 +300,18 @@ class Map:
             print(f"Event search error: {e}")
             raise e
 
+    def scheduleFileDelete(self, filePaths, hours=1):
+        """Schedule the file deletion task to run after a given number of hours."""
+        self.scheduler.add_job(self.deleteFiles, 'date', run_date=datetime.now() + timedelta(minutes=hours), args=[filePaths]) #fix this to be minutes
+
+    def deleteFiles(self, filePaths):
+        """Delete the specified files."""
+        for filePath in filePaths:
+            try:
+                if os.path.exists(filePath):
+                    os.remove(filePath)
+            except Exception as e:
+                print(f"Error deleting file {filePath}: {e}")
 
     def magToEnergy(self, mag):
         return math.pow(10, ((mag * 3) / 2) + 4.8)
@@ -335,37 +327,9 @@ class Map:
         return (red, green, blue)
 
 
-
-
-
-#    def fetchWaveforms(self,stations):
-#        client = Client("IRIS")
-#        try:
-#            bulk = []
-#            for s in stations:
-#                for r in self.eventsById:
-#                    try:
-#                        network_code, station_code, location_code, channel_code = s.split(".")
-#                        bulk.append((network_code, station_code, location_code, channel_code, r.get('starttime'), r.get('endtime')))
-#                    except Exception as e:
-#                        print(f"Failed to build bulk item for {s}: {e}")
-#
-#            st = client.get_waveforms_bulk(bulk, attach_response=True)
-#            if st is None or len(st) == 0:
-#                print("No waveforms found for the selected stations.")
-#                return
-#            return st
-#        except Exception as e:
-#            print(f"Error fetching waveforms: {e}")
-#
-#
-def getStationDistance(station,lat,long):
-    """
-    Calculate the distance between a station and a given latitude and longitude.
-    """
-    print(f"Calculating distance for station: {station}, lat: {lat}, long: {long}")
+def getStationDistance(station, lat, long):
     if not station or not station.get('lat') or not station.get('lon'):
-        return float('inf')  # Return infinity if station data is incomplete
+        return float('inf')
 
     lat1 = math.radians(station['lat'])
     lon1 = math.radians(station['lon'])
@@ -380,22 +344,21 @@ def getStationDistance(station,lat,long):
     return c * r
 
 
-
 def formatWaveforms(stream):
     waveforms = []
-    
+
     for trace in stream:
-        time = trace.times()  # this gives the time values
-        amplitude = trace.data  # this gives the amplitude values
-        
+        time = trace.times()
+        amplitude = trace.data
+
         waveform = {
-            'time': time.tolist(),   # Convert numpy array to list
-            'amplitude': amplitude.tolist(),  # Convert numpy array to list
-            'station': trace.stats.station,  # Optional, station name
-            'network': trace.stats.network,  # Optional, network name
-            'starttime': trace.stats.starttime.isoformat(),  # Start time in ISO format
-            'sampling_rate': trace.stats.sampling_rate  # Sampling rate
+            'time': time.tolist(),
+            'amplitude': amplitude.tolist(),
+            'station': trace.stats.station,
+            'network': trace.stats.network,
+            'starttime': trace.stats.starttime.isoformat(),
+            'sampling_rate': trace.stats.sampling_rate
         }
         waveforms.append(waveform)
-    
+
     return waveforms

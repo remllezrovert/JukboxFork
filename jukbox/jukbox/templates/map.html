@@ -92,7 +92,7 @@
       });
     </script>
 
-    <script src="{% static 'js/map.js' %}" defer></script>
+    <script src="{% static 'jukbox/js/map.js' %}" defer></script>
 </head>
 
 <body>
@@ -183,6 +183,29 @@
         startDateInput.addEventListener('change', updateDateRange);
         endDateInput.addEventListener('change', updateDateRange);
         updateDateRange();
+
+    async function clearStores(dbName) {
+        const openReq = indexedDB.open(dbName);
+        openReq.onsuccess = async (evt) => {
+            const db = evt.target.result;
+            const tx = db.transaction([...db.objectStoreNames], "readwrite");
+            for (const name of db.objectStoreNames) {
+            tx.objectStore(name).clear();
+            }
+            tx.oncomplete = () => {
+            console.log("Cleared all object stores in", dbName);
+            db.close();
+            };
+        };
+        }
+
+    clearStores("eventStore");
+    clearStores("stationStore");
+    setInterval(() => {
+            clearStores("eventStore");
+            clearStores("stationStore");
+        }, 1000 *60 * 60); // Clear every hour 
+
 
         const searchQuakes = async function () {
             let latLng = window.circle.getLatLng();
