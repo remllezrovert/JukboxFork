@@ -1,7 +1,5 @@
 from email.mime import image
-import tkinter as tk
 from typing import IO, List, Optional
-from PIL import ImageTk, Image
 import random
 import os
 import shutil
