@@ -93,7 +93,7 @@ async function fetchEvents(userInput, limit, baseUrl = "https://service.iris.edu
         mag,
         startTime: originStartTime,
         endTime: originEndTime,
-        icon: "/static/jukbox/img/earthquake.png",
+        icon: "/static/jukbox/img/center.png",
         tensorParts: await ballParts(quake)
       };
     }
