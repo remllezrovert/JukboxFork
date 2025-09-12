@@ -127,7 +127,7 @@
     </div>
 
     <div style="margin-top: 20px;">
-        <button id="searchButton" onclick="searchQuakes()">Search</button>
+        <button id="searchButton" onclick="fetchQuakes()">Search</button>
     </div>
 
     <div id="myseismograph"></div>
@@ -143,7 +143,7 @@
             magnitude = parseFloat(magnitude);
             if (magnitude < 2) thumbColor = magValueDisplay.style.color = 'blue';
             else if (magnitude < 4) thumbColor = magValueDisplay.style.color = 'green';
-            else if (magnitude < 6) thumbColor = magValueDisplay.style.color = 'yellow';
+            else if (magnitude < 6) thumbColor = magValueDisplay.style.color = 'orange';
             else if (magnitude < 8) thumbColor = magValueDisplay.style.color = 'red';
             else thumbColor = magValueDisplay.style.color = 'black';
 
@@ -206,6 +206,39 @@
             clearStores("stationStore");
         }, 1000 *60 * 60); // Clear every hour 
 
+    const fetchQuakes = async function () {
+        try{
+        userInput = {
+        "latLng": window.circle.getLatLng();
+        "maxRad": document.getElementById('radiusSlider').value;
+        "minMag": magSlider.value;
+        "startDate":startDateInput.value;
+        "endDate": endDateInput.value;
+        "dataProvider": document.getElementById('clientSelect').value;
+        "channelCode": "BHZ";
+        }
+        let events = await fetchEvents(userInput,limit);
+        await saveDictToStoreIndexedDB("eventStore", events);
+        getAllEvents().then(events => {
+            plotPoints(events);
+        });
+        let stations = await quakesToStations(events, userInput,5);
+        await saveDictToStoreIndexedDB("stationStore", stations);
+        } catch (error) {
+                alert('An error occurred while searching!');
+            }
+
+            window.map.dragging.enable();
+            window.map.doubleClickZoom.enable();
+            window.map.scrollWheelZoom.enable();
+            document.querySelector('.leaflet-container').style.cursor = 'grab';
+        };
+
+
+
+
+
+
 
         const searchQuakes = async function () {
             let latLng = window.circle.getLatLng();
@@ -224,6 +257,7 @@
                 magnitude: magnitude,
                 selectedClient: clientSelect
             };
+
 
             try {
                 const response = await fetch('/search_quakes/', {
