@@ -107,7 +107,7 @@
     </div>
 
     <div style="margin-top: 20px;">
-        <label for="channelSelect">Max Events to Fetch: </label>
+        <label for="channelSelect">Channel: </label>
         <select id="channelSelect">
             <option value="BHN">BHN</option>
             <option value="BHZ" selected>BHZ</option>
@@ -125,7 +125,7 @@
         <label for="startDate">Start Date: </label>
         <input type="date" id="startDate" value="1945-01-01" min="1945-01-01" max="{{ currentDate }}" />
         <label for="endDate">End Date: </label>
-        <input type="date" id="endDate" value="{{ currentDate }}" min="1945-01-01" max="{{ currentDate }}" />
+        <input type="date" id="endDate" value="{{currentDate}}" min="1945-01-01" max="{{ currentDate }}" />
         <span id="dateRangeDisplay">From 1945 to {{ currentDate }}</span>
     </div>
 
@@ -194,62 +194,38 @@
         updateDateRange();
 
     async function clearStores(dbName) {
-        const openReq = indexedDB.open(dbName);
-        openReq.onsuccess = async (evt) => {
-            const db = evt.target.result;
-            const tx = db.transaction([...db.objectStoreNames], "readwrite");
-            for (const name of db.objectStoreNames) {
-            tx.objectStore(name).clear();
-            }
-            tx.oncomplete = () => {
-            console.log("Cleared all object stores in", dbName);
-            db.close();
-            };
-        };
+    const openReq = indexedDB.open(dbName);
+
+    openReq.onsuccess = async (evt) => {
+        const db = evt.target.result;
+
+        if (db.objectStoreNames.length === 0) {
+        console.warn(`No stores found in database: ${dbName}`);
+        db.close();
+        return;
         }
 
-    clearStores("eventStore");
-    clearStores("stationStore");
+        const tx = db.transaction([...db.objectStoreNames], "readwrite");
+
+        for (const name of db.objectStoreNames) {
+        tx.objectStore(name).clear();
+        }
+
+        tx.oncomplete = () => {
+        console.log("Cleared all object stores in", dbName);
+        db.close();
+        };
+    };
+    }
+
+    clearStores("MapDatabase");
+    //clearStores("stationStore");
     setInterval(() => {
-            clearStores("eventStore");
-            clearStores("stationStore");
+            clearStores("MapDatabase");
         }, 1000 *60 * 60); // Clear every hour 
 
-    const fetchQuakes = async function () {
-        try{
-        userInput = {
-        "latLng": window.circle.getLatLng();
-        "maxRad": document.getElementById('radiusSlider').value;
-        "minMag": magSlider.value;
-        "startDate":startDateInput.value;
-        "endDate": endDateInput.value;
-        "dataProvider": document.getElementById('clientSelect').value;
-        "channelCode": document.getElementById('channelSelect').value;
-        }
-        let events = await fetchEvents(userInput,limit);
-        await saveDictToStoreIndexedDB("eventStore", events);
-        getAllEvents().then(events => {
-            plotPoints(events);
-        });
-        let stations = await quakesToStations(events, userInput,5);
-        await saveDictToStoreIndexedDB("stationStore", stations);
-        } catch (error) {
-                alert('An error occurred while searching!');
-            }
-
-            window.map.dragging.enable();
-            window.map.doubleClickZoom.enable();
-            window.map.scrollWheelZoom.enable();
-            document.querySelector('.leaflet-container').style.cursor = 'grab';
-        };
-
-
-
-
-
-
-
         const searchQuakes = async function () {
+            console.log("searchgQuakes called");
             let latLng = window.circle.getLatLng();
             var radius = document.getElementById('radiusSlider').value;
             var startDate = startDateInput.value;

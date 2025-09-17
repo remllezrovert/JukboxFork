@@ -100,6 +100,7 @@ function clearMarkers(map) {
 }
 
 function getAllEvents() {
+  console.log("running getAllEvents");
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("MapDatabase", 1);
     request.onsuccess = function (event) {

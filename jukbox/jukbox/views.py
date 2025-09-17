@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import obspy
 from django.shortcuts import render
-from django.contrib.gis import geos
 from django.views.decorators.csrf import csrf_exempt
 
 

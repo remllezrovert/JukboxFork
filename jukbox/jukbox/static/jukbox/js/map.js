@@ -6,6 +6,41 @@ let stationMarkers = [];
 
 
 
+const fetchQuakes = async function () {
+  console.log("fetchQuakes called");
+  try{
+  const userInput = {
+  "latLng": window.circle.getLatLng(),
+  "maxRad": document.getElementById('radiusSlider').value,
+  "minMag": magSlider.value,
+  "startDate":startDateInput.value,
+  "endDate": endDateInput.value,
+  "dataProvider": document.getElementById('clientSelect').value,
+  "channelCode": document.getElementById('channelSelect').value,
+  }
+  console.log("userInput:", JSON.stringify(userInput, null, 2));
+  let limit = 5;
+  let events = await fetchEvents(userInput,limit);
+  await saveDictToStoreIndexedDB("eventStore", events);
+  getAllEvents().then(events => {
+      console.log("Events from IndexedDB:", events);
+      plotPoints(events);
+  });
+  let stations = await quakesToStations(events, userInput,5);
+  await saveDictToStoreIndexedDB("stationStore", stations);
+  } catch (error) {
+          alert('An error occurred while searching!');
+      }
+
+      window.map.dragging.enable();
+      window.map.doubleClickZoom.enable();
+      window.map.scrollWheelZoom.enable();
+      document.querySelector('.leaflet-container').style.cursor = 'grab';
+  };
+
+
+
+
 async function ballParts(quake) {
   let mechanism = quake.preferredFocalMechanism();
 
@@ -41,28 +76,29 @@ async function ballParts(quake) {
 
 
 
-async function fetchEvents(userInput, limit, baseUrl = "https://service.iris.edu") {
+async function fetchEvents(userInput, limit) {
+  baseUrl = "https://service.iris.edu";
+  console.log("fetchEvents called with userInput:")
   if (!window.sp) {
     console.error("seisplotjs (window.sp) is not loaded.");
     return {};
   }
 
   const DateTime = window.sp.luxon.DateTime;
-  const quakeQuery = new window.sp.fdsnquakeml.FDSNQuakeMLQuery()
-    .protocol("https")
-    .host(baseUrl.replace(/^https?:\/\//, ''))
-    .latitude(userInput.latLng.lat)
-    .longitude(userInput.latLng.lng)
-    .maxRadius(userInput.maxRad)
-    .minMagnitude(userInput.minMag)
-    .startTime(DateTime.fromISO(userInput.startDate))
-    .endTime(DateTime.fromISO(userInput.endDate))
-    .limit(limit)
-    .orderBy("magnitude")
-    .includeAllOrigins(false);
+
+    let quakeQuery = new window.sp.fdsnevent.EventQuery()
+  .latitude(userInput.latLng.lat)
+  .longitude(userInput.latLng.lng)
+  .maxRadius(userInput.maxRad)
+  .minMag(userInput.minMag)
+  .startTime(window.sp.luxon.DateTime.fromISO(userInput.startDate))
+  .endTime(window.sp.luxon.DateTime.fromISO(userInput.endDate))
+  .limit(limit)
+  .orderBy("magnitude");
 
   try {
     const quakesData = await quakeQuery.query();
+    console.log(`Fetched ${quakesData.length} quake events.`);
     const results = {};
 
     for (const quake of quakesData) {
@@ -84,7 +120,7 @@ async function fetchEvents(userInput, limit, baseUrl = "https://service.iris.edu
       const originStartTime = originTime.minus({ minutes: 5 }).toISO();
       const originEndTime = originTime.plus({ minutes: 10 }).toISO();
 
-      const eventId = crypto.randomUUID(); // Random unique key
+      const eventId = crypto.randomUUID(); // Random key
 
       results[eventId] = {
         eventId,
@@ -303,6 +339,7 @@ function clearMarkers(map) {
 }
 
 function getAllEvents() {
+  console.log("running getAllEvents");
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("MapDatabase", 1);
     request.onsuccess = function (event) {
