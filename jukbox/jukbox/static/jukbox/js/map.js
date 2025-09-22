@@ -11,7 +11,7 @@ const fetchQuakes = async function () {
   try{
   const userInput = {
   "latLng": window.circle.getLatLng(),
-  "maxRad": document.getElementById('radiusSlider').value,
+  "maxRad": document.getElementById('radiusSlider').value / 111.32, //convert km to degrees of earth
   "minMag": magSlider.value,
   "startDate":startDateInput.value,
   "endDate": endDateInput.value,
@@ -102,7 +102,7 @@ async function fetchEvents(userInput, limit) {
     const results = {};
 
     for (const quake of quakesData) {
-      let origin = quake.preferredOrigin();
+      origin = quake.origin;
       if (!origin && quake.origins.length > 0) {
         origin = quake.origins[0];
       }
@@ -114,9 +114,12 @@ async function fetchEvents(userInput, limit) {
       const lat = origin.latitude;
       const lng = origin.longitude;
       const depth = (origin.depth || 0) / 1000.0; // Convert to km
-      const mag = quake.preferredMagnitude()?.mag || null;
+      //const mag = quake.preferredMagnitude?.mag || null;
+      const mag = quake.magnitude.mag || null;
+ 
+    const originTime = quake.time;
 
-      const originTime = window.sp.util.isoToDateTime(origin.time);
+
       const originStartTime = originTime.minus({ minutes: 5 }).toISO();
       const originEndTime = originTime.plus({ minutes: 10 }).toISO();
 
@@ -129,8 +132,8 @@ async function fetchEvents(userInput, limit) {
         mag,
         startTime: originStartTime,
         endTime: originEndTime,
-        icon: "/static/jukbox/img/center.png",
-        tensorParts: await ballParts(quake)
+        icon: "/static/jukbox/img/center.png"
+        //tensorParts: await ballParts(quake)
       };
     }
 
@@ -146,9 +149,10 @@ async function quakesToStations(quakes, userInput, limit, baseUrl = "https://ser
   for (let key in quakes){
     let quake = quakes[key];
    if (!quake || !quake.latLng.lat || !quake.latLng.lng || !quake.startTime || !quake.endTime) { 
-    console.error("Invalid quake object:", quake); return []; } 
+    console.error("Invalid quake object:", quake); continue; } 
     ret[key] = await fetchClosestStations(quake, userInput);
   }
+  console.log("quakesToStations result:", ret);
   return ret;
 }
 
@@ -162,62 +166,107 @@ async function fetchClosestStations(quake, userInput, limit = 100, baseUrl = "ht
   }
 
   const DateTime = window.sp.luxon.DateTime;
-  const distaz = window.sp.distaz;
+  const distaz = window.sp.distaz.distaz;
 
   // Query station metadata near quake location and time window
-  const stationQuery = new window.sp.fdsnstation.FDSNStationQuery()
+  try{
+
+    quakeTime = DateTime.fromISO(quake.startTime);
+    const quakeStart = quakeTime.minus({ hours: 24 });
+    const quakeEnd =  quakeTime.plus({ hours: 24 });
+
+  const stationQuery = new window.sp.fdsnstation.StationQuery()
     .protocol("https")
     .host(baseUrl.replace(/^https?:\/\//, ''))
     .latitude(quake.latLng.lat)
     .longitude(quake.latLng.lng)
     .maxRadius(userInput.maxRad)
-    .startTime(DateTime.fromISO(quake.startTime))
-    .endTime(DateTime.fromISO(quake.endTime))
-    .limit(limit)
-    .includeResponse(false)
-    .nodata(404);
+    .startTime(quakeStart)
+    .endTime(quakeEnd)
+    .channelCode(userInput.channelCode);
+    //.limit(limit)
 
-  try {
-    const stationXML = await stationQuery.query();
-    const networks = window.sp.fdsnstationxml.parseStationXml(stationXML);
+  let xmlText = await stationQuery.queryRawXmlText(window.sp.fdsnstation.LEVEL_CHANNEL);
+  xmlText = xmlText.replace(/<InstrumentSensitivity>[\s\S]*?<\/InstrumentSensitivity>/g, '');
 
-    const quakeStart = DateTime.fromISO(quake.startTime);
-    const quakeEnd = DateTime.fromISO(quake.endTime);
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+
+//patch
+    window.sp.stationxml.Response.prototype.fromXml = function () {
+  this.instrumentSensitivity = null;
+  this.stageList = [];
+  return this;
+};
+
+
+    let networks;
+    try {
+      networks = window.sp.stationxml.parseStationXml(xmlDoc);
+    } catch (parseErr) {
+      console.error("Error parsing StationXML:", parseErr.message || parseErr);
+      return []; // Gracefully skip malformed station data
+    }
+
+    //console.log(xmlText);
+
+    //console.log("Station keys:", Object.keys(networks[0].stations[0]));
+
+
+
 
     const stationsWithDist = [];
-
     for (const net of networks) {
       for (const sta of net.stations) {
         // Use the station's start/end dates if available, otherwise fallback to quake times
         const staStart = sta.startDate ? DateTime.fromISO(sta.startDate) : null;
         const staEnd = sta.endDate ? DateTime.fromISO(sta.endDate) : null;
 
+        console.log(`Channels for station ${sta.stationCode}:`, sta.channels);
+
         // Check if station operational during quake time window
         if (staStart && staStart > quakeEnd) continue;
         if (staEnd && staEnd < quakeStart) continue;
+        channelCode = null;
+        const matchingChannel = sta.channels.find(ch => {
 
-        // Location code: take first channel location or use '--' as fallback
-        // Since we're not iterating channels, just grab locationCode from first channel that matches channelCode
-        const matchingChannel = sta.channels.find(ch => ch.code === userInput.channelCode);
-        const locCode = matchingChannel && matchingChannel.locationCode && matchingChannel.locationCode.trim() !== "" ? matchingChannel.locationCode : "--";
+          if (ch && ch.channelCode && ch.channelCode.toUpperCase().includes(userInput.channelCode.toUpperCase())){
+            channelCode = ch.channelCode;
+            return true
+          } else {
+            return false
+          }
+        }
+        );
 
-        // Build seedId with network.station.location.channel
-        const seedId = `${net.code}.${sta.code}.${locCode}.${userInput.channelCode}`;
 
-        // Calculate distance from quake to station
+      if (!matchingChannel) {
+        console.warn(`No valid channels found in station ${sta.stationCode}`);
+        continue; // Skip this station if no valid channel is found
+      }
+
+      const locCode = matchingChannel.locationCode && matchingChannel.locationCode.trim() !== "" 
+        ? matchingChannel.locationCode 
+        : "*";
+
+
+
+
+      const seedId = `${net.networkCode}.${sta.stationCode}.${locCode}.${matchingChannel.code}`;
+                // Calculate distance from quake to station
         const distanceData = distaz(quake.latLng.lat, quake.latLng.lng, sta.latitude, sta.longitude);
         const distanceKm = distanceData.distance;
 
         stationsWithDist.push({
           latLng: { lat: sta.latitude, lng: sta.longitude },
-          network: net.code,
-          station: sta.code,
+          network: net.networkCode,
+          station: sta.stationCode,
           elevation: sta.elevation,
           siteName: sta.site?.name || "",
           startTime: sta.startDate,
           endTime: sta.endDate,
           distanceKm: distanceKm,
-          icon: "/static/jukbox/img/station.png",
+          icon: "/static/jukbox/img/station.jpg",
           seedId: seedId
         });
       }
@@ -258,17 +307,31 @@ async function fetchWaveformsBulk(stations, baseUrl = "https://service.iris.edu"
       continue;
     }
     const locCode = location === "" ? "--" : location;
-    let timeWindow = sp.util.startDuration(station.starttime, 600);
+    //let start = station.startTime
+    //let timeWindow = sp.util.startDuration(start, 600);
     const query = new window.sp.fdsndataselect.DataSelectQuery();
 
     query.baseUrl = baseUrl + "/fdsnws/dataselect/1";
 
+  const DateTime = window.sp.luxon.DateTime;
+
+    console.log("station.startTime initial data type", station.startTime,typeof station.startTime)
+  let startTime = station.startTime;
+  if (typeof startTime === 'string') {
+    startTime = DateTime.fromISO(startTime);
+  }
+  startTime = window.sp.luxon.DateTime.fromMillis(startTime.ts);
+  let endTime = startTime.plus({ minutes: 90 });
+  console.log("final startTime", startTime.toISO());
+  console.log("endTime", endTime.toISO());
     query
       .networkCode(network)
       .stationCode(stationCode)
       .locationCode(locCode)
       .channelCode(channel)
-      .timeRange(timeWindow);
+      //.timeRange(timeWindow)
+      .startTime(startTime.toISO())
+      .endTime(endTime.toISO());
 
     try {
       allSeismograms.push(query);
@@ -298,6 +361,9 @@ async function openDatabaseWithStores(storeNames, dbName = "MapDatabase", versio
     request.onerror = () => reject(request.error);
   });
 }
+
+
+
 
 async function saveDictToStoreIndexedDB(storeName, items) {
   console.log("Saving items to IndexedDB store:", storeName, items);
@@ -383,7 +449,7 @@ function plotPoints(points) {
 
       const marker = L.marker([point.latLng.lat, point.latLng.lng], { icon: customIcon })
         .addTo(map)
-        .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}<br>starttime: ${point.startTime || 'N/A'}<br>endtime: ${point.endTime || 'N/A'}`, { autoPan: false });
+        .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}<br>starttime: ${point.startTime || 'N/A'}<br>endtime: ${point.endTime || 'N/A'} <br>magnitude: ${point.mag}<br>depth: ${point.depth}`, { autoPan: false });
 
       marker.on('click', function () {
         document.body.style.cursor = 'default';
@@ -447,7 +513,9 @@ function plotStations(points) {
 
       const marker = L.marker([point.latLng.lat, point.latLng.lng], { icon: customIcon })
         .addTo(map)
-        .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}<br>starttime: ${point.startTime || 'N/A'}<br>endtime: ${point.endTime || 'N/A'}`, { autoPan: false });
+        .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}`, { autoPan: false });
+
+          //<br>starttime: ${point.startTime || 'N/A'}<br>endtime: ${point.endTime || 'N/A'}
 
       marker.on('click', function () {
         document.body.style.cursor = 'default';
@@ -468,8 +536,36 @@ function plotStations(points) {
 
   waveForms.then(waveforms => {
     waveforms.forEach(waveform => {
-      waveform.querySeismograms()
+
+
+      console.log("Processing waveform:", waveform);
+      console.log({
+      net: waveform._netCode,
+      sta: waveform._stationCode,
+      loc: waveform._locationCode,
+      cha: waveform._channelCode,
+      start: waveform._startTime,
+      end: waveform._endTime
+    });
+        
+
+
+
+      waveform.querySeismograms(true)
         .then((seisArray) => {
+
+
+
+          if (seisArray.length === 0) {
+            console.warn("No seismogram data received for query:", waveform);
+          } else {
+            console.log(`✅ Got ${seisArray.length} seismogram(s)`);
+          }
+
+
+
+
+
           const div = document.querySelector("div#myseismograph");
           let seisConfig = new sp.seismographconfig.SeismographConfig();
           let seisData = [];
@@ -489,4 +585,7 @@ function plotStations(points) {
     });
   });
 }
+
+
+
 
