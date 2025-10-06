@@ -13,7 +13,6 @@ let stationMarkers = [];
 
 
 const fetchQuakes = async function () {
-  console.log("fetchQuakes called");
   try{
   const userInput = {
   "latLng": window.circle.getLatLng(),
@@ -304,7 +303,7 @@ async function fetchClosestStations(quake, userInput, limit = 10000, baseUrl = "
 
 
 
-async function fetchWaveformsBulk(stations, baseUrl = "https://service.iris.edu") {
+async function fetchWaveformsBulk(stations, quake, baseUrl = "https://service.iris.edu") {
   if (!window.sp) {
     console.error("seisplotjs (window.sp) is not loaded.");
     return [];
@@ -328,7 +327,7 @@ async function fetchWaveformsBulk(stations, baseUrl = "https://service.iris.edu"
     const DateTime = window.sp.luxon.DateTime;
 
       console.log("station.startTime initial data type", station.startTime,typeof station.startTime)
-    let startTime = station.startTime;
+    let startTime = quake.startTime;
     if (typeof startTime === 'string') {
       startTime = DateTime.fromISO(startTime);
     }
@@ -509,7 +508,7 @@ function plotPoints(points) {
 
           getRequest.onsuccess = function () {
             if (getRequest.result) {
-              plotStations(getRequest.result);
+              plotStations(getRequest.result, point);
             } else {
               console.log('No data found for ID:', id);
             }
@@ -546,51 +545,43 @@ function plotPoints(points) {
 
 
 
-function plotStations(points) {
+function plotStations(points, quake) {
   stationMarkers.forEach(marker => map.removeLayer(marker));
   stationMarkers = [];
 
-  const waveForms = fetchWaveformsBulk(points);
+  const waveForms = fetchWaveformsBulk(points, quake);
   const validStationCodes = [];
     // Clear previous waveform displays
   document.querySelector("#myseismograph").innerHTML = "";
 
   waveForms.then(waveforms => {
     waveforms.forEach(waveform => {
-      console.log("Processing waveform:", waveform);
-      console.log({
-        net: waveform._netCode,
-        sta: waveform._stationCode,
-        loc: waveform._locationCode,
-        cha: waveform._channelCode,
-        start: waveform._startTime,
-        end: waveform._endTime
-      });
+   //   console.log("Processing waveform:", waveform);
+   //   console.log({
+   //     net: waveform._netCode,
+   //     sta: waveform._stationCode,
+   //     loc: waveform._locationCode,
+   //     cha: waveform._channelCode,
+   //     start: waveform._startTime,
+   //     end: waveform._endTime
+   //   });
        
 waveform.querySeismograms(true)
   .then((seisArray) => {
     const div = document.querySelector("div#myseismograph");
     let seisData = [];
-
+    console.log("seisArray: ", seisArray)
     for (let s of seisArray) {
-      if (s.isSegmentList && Array.isArray(s.segments)) {
+      if (s.isContiguous() && s.y && s.y.length > 0){
+        seisData.push(sp.seismogram.SeismogramDisplayData.fromSeismogram(s));
+      } else {
         for (let segment of s.segments) {
           if (segment.y && segment.y.length > 0) {
-            seisData.push(sp.seismogram.SeismogramDisplayData.fromSeismogram(segment));
+            seisData.push(sp.seismogram.SeismogramDisplayData.fromSeismogramSegment(segment));
           }
         }
-      } else {
-        if (s.isContiguous() && s.y && s.y.length > 0){
-          seisData.push(sp.seismogram.SeismogramDisplayData.fromSeismogram(s));
-        } else {
-          for (let segment of s.segments) {
-            if (segment.y && segment.y.length > 0) {
-              seisData.push(sp.seismogram.SeismogramDisplayData.fromSeismogram(segment));
-            }
-          }
-        }
-
       }
+
     }
 
     if (seisData.length === 0) {
