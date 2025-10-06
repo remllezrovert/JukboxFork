@@ -85,16 +85,18 @@ async function ballParts(quake) {
 
 
 async function fetchEvents(userInput, limit) {
-  baseUrl = "https://service.iris.edu";
-  console.log("fetchEvents called with userInput:")
+  //baseUrl = "https://service.iris.edu";
+  //console.log("fetchEvents called with userInput:")
   if (!window.sp) {
     console.error("seisplotjs (window.sp) is not loaded.");
     return {};
   }
 
-  const DateTime = window.sp.luxon.DateTime;
+  const DateTim = window.sp.luxon.DateTime;
 
     let quakeQuery = new window.sp.fdsnevent.EventQuery()
+  .protocol('https')
+  .host(userInput.dataProvider)
   .latitude(userInput.latLng.lat)
   .longitude(userInput.latLng.lng)
   .maxRadius(userInput.maxRad)
@@ -328,15 +330,12 @@ async function fetchWaveformsBulk(stations, quake, baseUrl = "https://service.ir
 
     const DateTime = window.sp.luxon.DateTime;
 
-      console.log("station.startTime initial data type", station.startTime,typeof station.startTime)
     let startTime = quake.startTime;
     if (typeof startTime === 'string') {
       startTime = DateTime.fromISO(startTime);
     }
     startTime = window.sp.luxon.DateTime.fromMillis(startTime.ts);
     let endTime = startTime.plus({ minutes: 20 });
-    console.log("final startTime", startTime.toISO());
-    console.log("endTime", endTime.toISO());
       query
         //.networkCode(network)
         .networkCode(network ? network : "*")
@@ -565,7 +564,6 @@ waveform.querySeismograms(true)
     }
     const div = document.querySelector("div#myseismograph");
     let seisData = [];
-    console.log("seisArray: ", seisArray)
     for (let s of seisArray) {
       if (s.isContiguous() && s.y && s.y.length > 0){
         seisData.push(sp.seismogram.SeismogramDisplayData.fromSeismogram(s));
@@ -580,7 +578,7 @@ waveform.querySeismograms(true)
     }
 
     if (seisData.length === 0) {
-      console.warn("No seismogram data found: ",seisArray);
+      //console.warn("No seismogram data found: ",seisArray);
       return;
     }
 
