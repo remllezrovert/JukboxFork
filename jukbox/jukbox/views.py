@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import obspy
 from django.shortcuts import render
-from django.contrib.gis import geos
 from django.views.decorators.csrf import csrf_exempt
 
 
@@ -149,7 +148,7 @@ def stream_spectrogram_inline(request):
 
 
 
-
+@csrf_exempt
 def mapView(request):
     lat = 49.17
     lng = -123.96
@@ -164,6 +163,7 @@ def mapView(request):
     mapHtml = foliumMap._repr_html_()
 
     return render(request, 'map.html', {'mapHtml': mapHtml, 'lat': lat, 'lng': lng})
+
 @csrf_exempt
 def search_quakes(request):
     if request.method == 'POST':
@@ -183,16 +183,12 @@ def search_quakes(request):
             map.selectedClient = search_data.get('selectedClient')
 
             searchResults = map.eventSearch()
-            for event in searchResults.get('events', []):
-                event['starttime'] = event['starttime'].strftime('%Y-%m-%d %H:%M:%S')
-                event['endtime'] = event['endtime'].strftime('%Y-%m-%d %H:%M:%S')
-            
             
             response_data = {
                 'status': 'success',
                 'message': f'Search completed for magnitude {map.minMag}.',
-                'stations': searchResults.get('stations', []),  # Include the stations in the response
-                'events': searchResults.get('events', []),  # Include the events in the response
+                'stations': searchResults.get('stations', {}),  # Include the stations in the response
+                'events': searchResults.get('events', {}),  # Include the events in the response
                 'data': searchResults.get('data', [])  # Include the data in the response
             }
 
@@ -205,5 +201,7 @@ def search_quakes(request):
 
             
             
-            
+def fetch_waves(request):
+    if request.method == 'POST':
+        print("Received POST request for fetching waves")
 
