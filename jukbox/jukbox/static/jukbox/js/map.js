@@ -1,4 +1,4 @@
-indexedDB.deleteDatabase("MapDatabase"); // Wipe database on refresh
+indexedDB.deleteDatabase("MapDatabase");
 
 console.log("map.js loaded");
 let stationMarkers = [];
@@ -6,7 +6,10 @@ let stationMarkers = [];
 
 
 
-
+const normalizeLatLng = async function (latLng) {
+  latLng.lng = ((latLng.lng + 180) % 360 + 360) % 360 - 180;
+  return latLng
+}
 
 
 
@@ -15,8 +18,8 @@ let stationMarkers = [];
 const fetchQuakes = async function () {
   try{
   const userInput = {
-  "latLng": window.circle.getLatLng(),
-  "maxRad": document.getElementById('radiusSlider').value / 111.32, //convert km to degrees of earth
+  "latLng": await normalizeLatLng(window.circle.getLatLng()),
+  "maxRad": document.getElementById('radiusSlider').value / 111.32,
   "minMag": magSlider.value,
   "startDate":startDateInput.value,
   "endDate": endDateInput.value,
@@ -35,7 +38,6 @@ const fetchQuakes = async function () {
   await saveDictToStoreIndexedDB("stationStore", stations);
   } catch (error) {
           console.log(error)
-          //alert('An error occurred while searching!', error);
       }
 
       window.map.dragging.enable();
@@ -546,28 +548,21 @@ function plotPoints(points) {
 
 
 function plotStations(points, quake) {
+  let maxGraphCount = 5;
   stationMarkers.forEach(marker => map.removeLayer(marker));
   stationMarkers = [];
 
   const waveForms = fetchWaveformsBulk(points, quake);
-  const validStationCodes = [];
-    // Clear previous waveform displays
   document.querySelector("#myseismograph").innerHTML = "";
 
+  let graphCount = 0; 
   waveForms.then(waveforms => {
     waveforms.forEach(waveform => {
-   //   console.log("Processing waveform:", waveform);
-   //   console.log({
-   //     net: waveform._netCode,
-   //     sta: waveform._stationCode,
-   //     loc: waveform._locationCode,
-   //     cha: waveform._channelCode,
-   //     start: waveform._startTime,
-   //     end: waveform._endTime
-   //   });
-       
 waveform.querySeismograms(true)
   .then((seisArray) => {
+    if (graphCount > maxGraphCount){
+      return;
+    }
     const div = document.querySelector("div#myseismograph");
     let seisData = [];
     console.log("seisArray: ", seisArray)
@@ -595,6 +590,7 @@ waveform.querySeismograms(true)
     for (let point of points){
       if (point.station === waveform._stationCode) {
         mapStation(point);
+        graphCount += 1;
         break;
       }
     }

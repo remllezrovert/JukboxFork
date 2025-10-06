@@ -61,7 +61,19 @@
         var lat = {{ lat }};
         var lng = {{ lng }};
 
-        window.map = L.map('map').setView([lat, lng], 14);
+        window.map = L.map('map', {
+        maxZoom: 10,
+        minZoom: 2,
+        worldCopyJump: false,
+        maxBoundsViscosity: 1.0,
+        maxBounds: [
+            [-85, -180],
+            [85, 180]    // Northeast
+        ],
+        scrollWheelZoom: true,
+        zoomControl: true
+        }).setView([lat,lng],2);
+
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution:
@@ -116,13 +128,13 @@
 
     <div style="margin-top: 20px;">
         <label for="radiusSlider">Circle Radius: </label>
-        <input type="range" id="radiusSlider" min="1" max="1000" value="300" step="10" style="width: 100%;" />
+        <input type="range" id="radiusSlider" min="1" max="1000" value="10" step="10" style="width: 100%;" />
         <span id="radiusValue">300 km</span>
     </div>
 
     <div style="margin-top: 20px;">
         <label for="startDate">Start Date: </label>
-        <input type="date" id="startDate" value="1945-01-01" min="1945-01-01" max="{{ currentDate }}" />
+        <input type="date" id="startDate" value="2000-01-01" min="1945-01-01" max="{{ currentDate }}" />
         <label for="endDate">End Date: </label>
         <input type="date" id="endDate" value="{{currentDate}}" min="1945-01-01" max="{{ currentDate }}" />
         <span id="dateRangeDisplay">From 1945 to {{ currentDate }}</span>
