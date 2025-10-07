@@ -19,6 +19,10 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
 
+@csrf_exempt
+def graph(request):
+    return render(request,'base.html',context={'text':'hello world'})
+
 def image_list(request):
     if request.method == 'POST':
         if 'delete' in request.POST:

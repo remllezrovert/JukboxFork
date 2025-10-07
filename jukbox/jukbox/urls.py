@@ -27,9 +27,14 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('record/', views.record_view, name='record-view'),
-    path('', image_list, name='image_list'),
     path('stream-inline', views.stream_spectrogram_inline, name='stream-inline'),
     path('search_quakes/', views.search_quakes, name='search_quakes'),
-    path('map/', views.mapView, name='mapView')
+    path('map/', views.mapView, name='mapView'),
+    path('graph/', views.graph, name="graph")
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
