@@ -194,7 +194,9 @@ class Map:
 
     def eventSearch(self):
         try:
-            events = self.getEvents(self.lat, self.lon, self.currentRadius / 111.111, self.selectedClient)
+            print(f"Searching for events near ({self.lat}, {self.lon}) within {self.currentRadius}° radius.")
+            events = self.getEvents(self.lat, self.lon, self.currentRadius, "USGS")
+            print(events)
             icons = []
             if not events:
                 print("No earthquakes found in this area!")
@@ -217,10 +219,9 @@ class Map:
                     endtime = event.origins[0].time + 1800
                     response = {
                         'eventId': eventId,
-                        'lat': origin.latitude,
-                        'lon': origin.longitude,
-                        'starttime': starttime,
-                        'endtime': endtime,
+                        'latLng': {'lat':origin.latitude, 'lng':origin.longitude},
+                        'startTime': starttime,
+                        'endTime': endtime,
                         "mag": mag,
                         "icon": f"/static/jukbox/img/center.png"
                     }
@@ -261,10 +262,9 @@ class Map:
                         icons.append("jukbox" + iconPath)
                         response = {
                             'eventId': eventId,
-                            'lat': origin.latitude,
-                            'lon': origin.longitude,
-                            'starttime': event.origins[0].time - 5 * 60,
-                            'endtime': event.origins[0].time + 1800,
+                            'latLng': {'lat':origin.latitude, 'lng':origin.longitude},
+                            'startTime': event.origins[0].time - 5 * 60,
+                            'endTime': event.origins[0].time + 1800,
                             "depth": origin.depth / 1000,
                             "mag": mag,
                             "type": type,
@@ -281,24 +281,19 @@ class Map:
 
             retEvents = copy.deepcopy(self.eventsById)
             for id, ee in retEvents.items():
-                ee['starttime'] = ee['starttime'].strftime('%Y-%m-%d %H:%M:%S')
-                ee['endtime'] = ee['endtime'].strftime('%Y-%m-%d %H:%M:%S')
-
-            eventStations = {}
-            for eventStation in self.getStations(self.currentRadius / 111.111).values():
-                stationEvents = []
-                for i in eventStation.arr:  stationEvents.append(i[1])
-                eventStations[eventStation.eventId] = stationEvents
+                ee['startTime'] = ee['startTime'].strftime('%Y-%m-%d %H:%M:%S')
+                ee['endTime'] = ee['endTime'].strftime('%Y-%m-%d %H:%M:%S')
 
             ret = {
                 'events': retEvents,
-                'stations': eventStations
             }
             print(ret)
             return ret
         except Exception as e:
             print(f"Event search error: {e}")
             raise e
+
+
 
     def scheduleFileDelete(self, filePaths, hours=1):
         """Schedule the file deletion task to run after a given number of hours."""

@@ -177,23 +177,24 @@ def search_quakes(request):
             # Get the data from the POST request (JSON format)
             search_data = json.loads(request.body)
 
+            provider = search_data.get('selectedClient')
+
+
             print(f"Search data received: {search_data}")
             # Extract the search parameters
-            map.lat = search_data.get('lat')
-            map.lon = search_data.get('lng')
-            map.currentRadius = int(search_data.get('radius'))
+            map.lat = search_data.get('latLng').get('lat')
+            map.lon = search_data.get('latLng').get('lng')
+            map.currentRadius = int(search_data.get('maxRad'))
             map.dateRange = datetime.strptime(search_data.get('startDate'), '%Y-%m-%d'),datetime.strptime(search_data.get('endDate'), '%Y-%m-%d')
-            map.minMag = search_data.get('magnitude')
-            map.selectedClient = search_data.get('selectedClient')
+            map.minMag = search_data.get('minMag')
+            map.selectedClient = 'USGS'
 
             searchResults = map.eventSearch()
             
             response_data = {
                 'status': 'success',
                 'message': f'Search completed for magnitude {map.minMag}.',
-                'stations': searchResults.get('stations', {}),  # Include the stations in the response
                 'events': searchResults.get('events', {}),  # Include the events in the response
-                'data': searchResults.get('data', [])  # Include the data in the response
             }
 
 
