@@ -43,6 +43,22 @@ const beachball = async function (userInput) {
 
   }
 
+const magToImage = async function (quake) {
+  let mag = quake.mag;
+
+  if (mag <= 1.0) quake.icon = "/static/jukbox/img/w.png";
+  else if (mag <= 2.0) quake.icon = "/static/jukbox/img/lb.png";
+  else if (mag <= 3.0) quake.icon = "/static/jukbox/img/t.png";
+  else if (mag <= 4.0) quake.icon = "/static/jukbox/img/lg.png";
+  else if (mag <= 5.0) quake.icon = "/static/jukbox/img/y.png";
+  else if (mag <= 6.0) quake.icon = "/static/jukbox/img/o.png";
+  else if (mag <= 7.0) quake.icon = "/static/jukbox/img/r.png";
+  else if (mag <= 8.0) quake.icon = "/static/jukbox/img/dr.png";
+  else quake.icon = "/static/jukbox/img/b.png";
+  return quake;
+}
+
+
 
 const fetchQuakes = async function () {
   try{
@@ -138,15 +154,15 @@ async function fetchEvents(userInput, limit) {
 
       const eventId = crypto.randomUUID(); // Random key
 
-      results[eventId] = {
+      results[eventId] = await magToImage({
         eventId,
         latLng: { lat, lng },
         depth,
         mag,
         startTime: originStartTime,
         endTime: originEndTime,
-        icon: "/static/jukbox/img/center.png"
-      };
+        icon: ""
+      });
     }
 
     return results;
