@@ -12,6 +12,24 @@ const normalizeLatLng = async function (latLng) {
 }
 
 
+
+
+
+
+const quakeToImage = async function (quake) {
+  let mag = quake.mag;
+  if (mag <= 1.0) quake.icon = "/static/jukbox/img/w.png";
+  else if (mag <= 2.0) quake.icon = "/static/jukbox/img/a.png";
+  else if (mag <= 3.0 ) quake.icon = "/static/jukbox/img/t.png";
+  else if (mag <= 4.0 ) quake.icon = "/static/jukbox/img/l.png";
+  else if (mag <= 5.0 ) quake.icon = "/static/jukbox/img/y.png";
+  else if (mag <= 6.0 ) quake.icon = "/static/jukbox/img/o.png";
+  else if (mag <= 7.0 ) quake.icon = "/static/jukbox/img/r.png";
+  else if (mag <= 8.0 ) quake.icon = "/static/jukbox/img/m.png";
+  else quake.icon = '/static/jukbox/img/b.png';
+  return quake
+};
+
 const beachball = async function (userInput) {
       console.log("searchgQuakes called");
 
@@ -138,7 +156,7 @@ async function fetchEvents(userInput, limit) {
 
       const eventId = crypto.randomUUID(); // Random key
 
-      results[eventId] = {
+      results[eventId] = await quakeToImage({
         eventId,
         latLng: { lat, lng },
         depth,
@@ -146,7 +164,7 @@ async function fetchEvents(userInput, limit) {
         startTime: originStartTime,
         endTime: originEndTime,
         icon: "/static/jukbox/img/center.png"
-      };
+      });
     }
 
     return results;
