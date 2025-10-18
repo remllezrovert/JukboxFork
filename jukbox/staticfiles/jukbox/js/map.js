@@ -1,15 +1,318 @@
-indexedDB.deleteDatabase("MapDatabase"); // Wipe database on refresh
+indexedDB.deleteDatabase("MapDatabase");
 
 console.log("map.js loaded");
 let stationMarkers = [];
 
-async function fetchWaveformsBulk(stations, baseUrl = "https://service.iris.edu") {
+
+
+
+const normalizeLatLng = async function (latLng) {
+  latLng.lng = ((latLng.lng + 180) % 360 + 360) % 360 - 180;
+  return latLng
+}
+
+
+
+
+
+const fetchQuakes = async function () {
+  try{
+  const userInput = {
+  "latLng": await normalizeLatLng(window.circle.getLatLng()),
+  "maxRad": document.getElementById('radiusSlider').value / 111.32,
+  "minMag": magSlider.value,
+  "startDate":startDateInput.value,
+  "endDate": endDateInput.value,
+  "dataProvider": document.getElementById('clientSelect').value,
+  "channelCode": document.getElementById('channelSelect').value,
+  }
+  console.log("userInput:", JSON.stringify(userInput, null, 2));
+  let limit = 5;
+  let events = await fetchEvents(userInput,limit);
+  await saveDictToStoreIndexedDB("eventStore", events);
+  getAllEvents().then(events => {
+      console.log("Events from IndexedDB:", events);
+      plotPoints(events);
+  });
+  let stations = await quakesToStations(events, userInput,5);
+  await saveDictToStoreIndexedDB("stationStore", stations);
+  } catch (error) {
+          console.log(error)
+      }
+
+      window.map.dragging.enable();
+      window.map.doubleClickZoom.enable();
+      window.map.scrollWheelZoom.enable();
+      document.querySelector('.leaflet-container').style.cursor = 'grab';
+  };
+
+
+
+
+async function ballParts(quake) {
+  let mechanism = quake.preferredFocalMechanism();
+
+  // Fallback to first focal mechanism if preferred is not available
+  if (!mechanism && quake.focalMechanisms.length > 0) {
+    mechanism = quake.focalMechanisms[0];
+  }
+
+  if (!mechanism) {
+    console.log("No focal mechanism found for quake:", quake);
+    return null;
+  }
+
+  const tensor = mechanism?.momentTensor?.tensor;
+
+  if (!tensor) {
+    console.log("No moment tensor found for mechanism:", mechanism);
+    return null;
+  }
+
+  const components = [
+    tensor.mrr, tensor.mtt, tensor.mpp,
+    tensor.mrt, tensor.mrp, tensor.mtp
+  ];
+
+  if (components.some(c => c === null || c === undefined)) {
+    console.log("Incomplete moment tensor components for tensor:", tensor);
+    return null;
+  }
+
+  return components;
+}
+
+
+
+async function fetchEvents(userInput, limit) {
+  //baseUrl = "https://service.iris.edu";
+  //console.log("fetchEvents called with userInput:")
+  if (!window.sp) {
+    console.error("seisplotjs (window.sp) is not loaded.");
+    return {};
+  }
+
+  const DateTim = window.sp.luxon.DateTime;
+
+    let quakeQuery = new window.sp.fdsnevent.EventQuery()
+  .protocol('https')
+  .host(userInput.dataProvider)
+  .latitude(userInput.latLng.lat)
+  .longitude(userInput.latLng.lng)
+  .maxRadius(userInput.maxRad)
+  .minMag(userInput.minMag)
+  .startTime(window.sp.luxon.DateTime.fromISO(userInput.startDate))
+  .endTime(window.sp.luxon.DateTime.fromISO(userInput.endDate))
+  .limit(limit)
+  .orderBy("magnitude");
+
+  try {
+    const quakesData = await quakeQuery.query();
+    console.log(`Fetched ${quakesData.length} quake events.`);
+    const results = {};
+
+    for (const quake of quakesData) {
+      origin = quake.origin;
+      if (!origin && quake.origins.length > 0) {
+        origin = quake.origins[0];
+      }
+      if (!origin) {
+        console.log("No origin found for quake:", quake);
+        continue;
+      }
+
+      const lat = origin.latitude;
+      const lng = origin.longitude;
+      const depth = (origin.depth || 0) / 1000.0; // Convert to km
+      //const mag = quake.preferredMagnitude?.mag || null;
+      const mag = quake.magnitude.mag || null;
+ 
+    const originTime = quake.time;
+
+
+      const originStartTime = originTime.minus({ minutes: 5 }).toISO();
+      const originEndTime = originTime.plus({ minutes: 10 }).toISO();
+
+      const eventId = crypto.randomUUID(); // Random key
+
+      results[eventId] = {
+        eventId,
+        latLng: { lat, lng },
+        depth,
+        mag,
+        startTime: originStartTime,
+        endTime: originEndTime,
+        icon: "/static/jukbox/img/center.png"
+        //tensorParts: await ballParts(quake)
+      };
+    }
+
+    return results;
+  } catch (err) {
+    console.error("Error fetching quake events:", err);
+    return {};
+  }
+}
+
+async function quakesToStations(quakes, userInput, limit, baseUrl = "https://service.iris.edu") {
+  const ret = {};
+  for (let key in quakes){
+    let quake = quakes[key];
+   if (!quake || !quake.latLng.lat || !quake.latLng.lng || !quake.startTime || !quake.endTime) { 
+    console.error("Invalid quake object:", quake); continue; } 
+    ret[key] = await fetchClosestStations(quake, userInput);
+  }
+  console.log("quakesToStations result:", ret);
+  return ret;
+}
+
+
+
+// retrns a list of five closest stations
+async function fetchClosestStations(quake, userInput, limit = 10000, baseUrl = "https://service.iris.edu") {
   if (!window.sp) {
     console.error("seisplotjs (window.sp) is not loaded.");
     return [];
   }
 
   const DateTime = window.sp.luxon.DateTime;
+  const distaz = window.sp.distaz.distaz;
+
+  // Query station metadata near quake location and time window
+  try{
+
+    quakeTime = DateTime.fromISO(quake.startTime);
+    //const quakeStart = quakeTime.minus({ hours: 24 });
+    //const quakeEnd =  quakeTime.plus({ hours: 24 });
+    const quakeStart = quakeTime.minus({minutes:5})
+    const quakeEnd = quakeTime.plus({minutes:5})
+
+  const stationQuery = new window.sp.fdsnstation.StationQuery()
+    .protocol("https")
+    .host(baseUrl.replace(/^https?:\/\//, ''))
+    .latitude(quake.latLng.lat)
+    .longitude(quake.latLng.lng)
+    .maxRadius(userInput.maxRad)
+    .startTime(quakeStart)
+    .endTime(quakeEnd)
+    .channelCode(userInput.channelCode)
+    //.limit(limit)
+
+  let xmlText = await stationQuery.queryRawXmlText(window.sp.fdsnstation.LEVEL_CHANNEL);
+  xmlText = xmlText.replace(/<InstrumentSensitivity>[\s\S]*?<\/InstrumentSensitivity>/g, '');
+
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+
+//patch
+    window.sp.stationxml.Response.prototype.fromXml = function () {
+  this.instrumentSensitivity = null;
+  this.stageList = [];
+  return this;
+};
+
+
+    let networks;
+    try {
+      networks = window.sp.stationxml.parseStationXml(xmlDoc);
+    } catch (parseErr) {
+      console.error("Error parsing StationXML:", parseErr.message || parseErr);
+      return []; // Gracefully skip malformed station data
+    }
+
+    //console.log(xmlText);
+
+    //console.log("Station keys:", Object.keys(networks[0].stations[0]));
+
+
+
+
+    let stationsWithDist = [];
+    for (const net of networks) {
+      for (const sta of net.stations) {
+        const staStart = sta.startDate ? DateTime.fromISO(sta.startDate) : null;
+       //const staEnd = DateTime.fromISO(staStart.plus({ hours: 48 }))
+       const staEnd = sta.endDate ? DateTime.fromISO(sta.endDate) : DateTime.now();
+
+        if (staStart === null || staEnd === null) console.log('start',staStart,"end",staEnd)
+
+        //console.log(`Channels for station ${sta.stationCode}:`, sta.channels);
+
+
+        // Check if station operational during quake time window
+        if (staStart && staStart > quakeEnd) continue;
+        if (staEnd && staEnd < quakeStart) continue;
+        //let channelCode = "BHZ";
+        const matchingChannel = sta.channels.find(ch => {
+          if (ch && ch.channelCode && ch.channelCode.toUpperCase().includes(userInput.channelCode.toUpperCase())){
+            channelCode = ch.channelCode;
+            return true
+          } else {
+            return false
+          }
+        }
+
+        );
+
+
+      if (!matchingChannel) {
+        console.warn(`No valid channels found in station ${sta.stationCode}`);
+        continue; // Skip this station if no valid channel is found
+      }
+
+
+      const locCode = matchingChannel.locationCode && matchingChannel.locationCode.trim() !== "" 
+        ? matchingChannel.locationCode 
+        : "*";
+
+
+
+
+      const seedId = `${net.networkCode}.${sta.stationCode}.${matchingChannel.locationCode}.${matchingChannel.channelCode}`;
+
+                // Calculate distance from quake to station
+        const distanceData = distaz(quake.latLng.lat, quake.latLng.lng, sta.latitude, sta.longitude);
+        const distanceKm = distanceData.distance;
+
+        stationsWithDist.push({
+          latLng: { lat: sta.latitude, lng: sta.longitude },
+          network: net.networkCode,
+          station: sta.stationCode,
+          channel: matchingChannel.channelCode,
+          elevation: sta.elevation,
+          siteName: sta.site?.name || "",
+          startTime: staStart,
+          endTime: staEnd,
+          distanceKm: distanceKm,
+          icon: "/static/jukbox/img/station.jpg",
+          seedId: seedId
+        });
+      }
+    }
+
+    console.log("stationsWithDist",stationsWithDist)
+    return stationsWithDist.sort((a, b) => a.distanceKm - b.distanceKm);
+
+
+  } catch (err) {
+    if (err.status === 404) {
+      console.log("No stations found in radius.");
+      return [];
+    } else {
+      console.error("Error fetching station metadata:", err);
+  return [];
+  }
+}}
+
+
+
+
+async function fetchWaveformsBulk(stations, quake, baseUrl = "https://service.iris.edu") {
+  if (!window.sp) {
+    console.error("seisplotjs (window.sp) is not loaded.");
+    return [];
+  }
+
   const allSeismograms = [];
 
   for (const station of stations) {
@@ -19,28 +322,70 @@ async function fetchWaveformsBulk(stations, baseUrl = "https://service.iris.edu"
       continue;
     }
     const locCode = location === "" ? "--" : location;
-    let timeWindow = sp.util.startDuration(station.starttime, 600);
+    //let start = station.startTime
+    //let timeWindow = sp.util.startDuration(start, 600);
     const query = new window.sp.fdsndataselect.DataSelectQuery();
 
     query.baseUrl = baseUrl + "/fdsnws/dataselect/1";
 
-    query
-      .networkCode(network)
-      .stationCode(stationCode)
-      .locationCode(locCode)
-      .channelCode(channel)
-      .timeRange(timeWindow);
+    const DateTime = window.sp.luxon.DateTime;
 
-    try {
-      allSeismograms.push(query);
-    } catch (err) {
-      console.error(`Failed to fetch waveforms for ${station.seedId}:`, err);
+    let startTime = quake.startTime;
+    if (typeof startTime === 'string') {
+      startTime = DateTime.fromISO(startTime);
     }
+    startTime = window.sp.luxon.DateTime.fromMillis(startTime.ts);
+    let endTime = startTime.plus({ minutes: 20 });
+      query
+        //.networkCode(network)
+        .networkCode(network ? network : "*")
+        .stationCode(stationCode)
+        //.timeRange(timeWindow)
+        .startTime(startTime.toISO())
+        .channelCode(channel)
+        //.locationCode(location)
+        .locationCode(location ? location : "*")
+        .endTime(endTime.toISO());
+
+      try {
+        allSeismograms.push(query);
+      } catch (err) {
+        console.error(`Failed to fetch waveforms for ${station.seedId}:`, err);
+      }
   }
 
   console.log("Fetched all waveforms:", allSeismograms);
   return allSeismograms;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 async function openDatabaseWithStores(storeNames, dbName = "MapDatabase", version = 1) {
   return new Promise((resolve, reject) => {
@@ -59,6 +404,9 @@ async function openDatabaseWithStores(storeNames, dbName = "MapDatabase", versio
     request.onerror = () => reject(request.error);
   });
 }
+
+
+
 
 async function saveDictToStoreIndexedDB(storeName, items) {
   console.log("Saving items to IndexedDB store:", storeName, items);
@@ -122,6 +470,11 @@ function getAllEvents() {
   });
 }
 
+
+
+
+
+
 function plotPoints(points) {
   if (!window.map) {
     console.error("Global map instance not found.");
@@ -129,7 +482,7 @@ function plotPoints(points) {
   }
 
   points.forEach(point => {
-    if (typeof point.lat === 'number' && typeof point.lon === 'number') {
+    if (point.latLng && typeof point.latLng.lat === 'number' && typeof point.latLng.lng === 'number') {
       const customIcon = L.icon({
         iconUrl: point.icon,
         iconSize: [30, 30],
@@ -137,9 +490,9 @@ function plotPoints(points) {
         popupAnchor: [0, -15]
       });
 
-      const marker = L.marker([point.lat, point.lon], { icon: customIcon })
+      const marker = L.marker([point.latLng.lat, point.latLng.lng], { icon: customIcon })
         .addTo(map)
-        .bindPopup(`Lat: ${point.lat}<br>Lon: ${point.lon}<br>starttime: ${point.starttime || 'N/A'}<br>endtime: ${point.endtime || 'N/A'}`, { autoPan: false });
+        .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}<br>starttime: ${point.startTime || 'N/A'}<br>endtime: ${point.endTime || 'N/A'} <br>magnitude: ${point.mag}<br>depth: ${point.depth}`, { autoPan: false });
 
       marker.on('click', function () {
         document.body.style.cursor = 'default';
@@ -156,7 +509,7 @@ function plotPoints(points) {
 
           getRequest.onsuccess = function () {
             if (getRequest.result) {
-              plotStations(getRequest.result);
+              plotStations(getRequest.result, point);
             } else {
               console.log('No data found for ID:', id);
             }
@@ -175,67 +528,109 @@ function plotPoints(points) {
   });
 
   if (points.length > 0) {
-    const latlngs = points.map(p => [p.lat, p.lon]);
+    const latlngs = points.map(p => [p.latLng.lat, p.latLng.lng]);
     // map.fitBounds(latlngs); // Uncomment if you want to zoom to bounds
   }
 }
 
-function plotStations(points) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+function plotStations(points, quake) {
+  let maxGraphCount = 5;
   stationMarkers.forEach(marker => map.removeLayer(marker));
   stationMarkers = [];
 
-  const waveForms = fetchWaveformsBulk(points);
-
-  points.forEach(point => {
-    if (typeof point.lat === 'number' && typeof point.lon === 'number') {
-      const customIcon = L.icon({
-        iconUrl: point.icon,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        popupAnchor: [0, -15]
-      });
-
-      const marker = L.marker([point.lat, point.lon], { icon: customIcon })
-        .addTo(map)
-        .bindPopup(`Lat: ${point.lat}<br>Lon: ${point.lon}<br>starttime: ${point.starttime || 'N/A'}<br>endtime: ${point.endtime || 'N/A'}`, { autoPan: false });
-
-      marker.on('click', function () {
-        document.body.style.cursor = 'default';
-        map.dragging.enable();
-      });
-
-      stationMarkers.push(marker);
-    }
-  });
-
-  if (points.length > 0) {
-    const latlngs = points.map(p => [p.lat, p.lon]);
-    // map.fitBounds(latlngs);
-  }
-
-  // Clear previous waveform displays
+  const waveForms = fetchWaveformsBulk(points, quake);
   document.querySelector("#myseismograph").innerHTML = "";
 
+  let graphCount = 0; 
   waveForms.then(waveforms => {
     waveforms.forEach(waveform => {
-      waveform.querySeismograms()
-        .then((seisArray) => {
-          const div = document.querySelector("div#myseismograph");
-          let seisConfig = new sp.seismographconfig.SeismographConfig();
-          let seisData = [];
-
-          for (let s of seisArray) {
-            seisData.push(sp.seismogram.SeismogramDisplayData.fromSeismogram(s));
+waveform.querySeismograms(true)
+  .then((seisArray) => {
+    if (graphCount > maxGraphCount){
+      return;
+    }
+    const div = document.querySelector("div#myseismograph");
+    let seisData = [];
+    for (let s of seisArray) {
+      if (s.isContiguous() && s.y && s.y.length > 0){
+        seisData.push(sp.seismogram.SeismogramDisplayData.fromSeismogram(s));
+      } else {
+        for (let segment of s.segments) {
+          if (segment.y && segment.y.length > 0) {
+            seisData.push(sp.seismogram.SeismogramDisplayData.fromSeismogramSegment(segment));
           }
+        }
+      }
 
-          let graph = new sp.seismograph.Seismograph(seisData, seisConfig);
-          div.appendChild(graph);
-        })
-        .catch(function (error) {
-          const div = document.querySelector("div#myseismograph");
-          div.innerHTML = `<p>Error loading data. ${error}</p>`;
-          console.assert(false, error);
-        });
+    }
+
+    if (seisData.length === 0) {
+      //console.warn("No seismogram data found: ",seisArray);
+      return;
+    }
+
+    let seisConfig = new sp.seismographconfig.SeismographConfig();
+    let graph = new sp.seismograph.Seismograph(seisData, seisConfig);
+    div.appendChild(graph);
+    for (let point of points){
+      if (point.station === waveform._stationCode) {
+        mapStation(point);
+        graphCount += 1;
+        break;
+      }
+    }
+  })
+  .catch(function (error) {
+    const div = document.querySelector("div#myseismograph");
+    div.innerHTML = `<p>Error loading data. ${error}</p>`;
+    console.assert(false, error);
+  });
+
     });
   });
+}
+
+
+
+      
+
+
+
+
+
+function mapStation(point){
+      if (point.latLng && typeof point.latLng.lat === 'number' && typeof point.latLng.lng === 'number') {
+        const customIcon = L.icon({
+          iconUrl: point.icon,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15],
+          popupAnchor: [0, -15]
+        });
+
+        const marker = L.marker([point.latLng.lat, point.latLng.lng], { icon: customIcon })
+          .addTo(map)
+          .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}`, { autoPan: false });
+
+        marker.on('click', function () {
+          document.body.style.cursor = 'default';
+          map.dragging.enable();
+        });
+
+        stationMarkers.push(marker);
+      }
+
+
 }

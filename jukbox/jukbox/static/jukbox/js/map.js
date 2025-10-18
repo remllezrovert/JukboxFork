@@ -1,8 +1,8 @@
+
 indexedDB.deleteDatabase("MapDatabase");
 
 console.log("map.js loaded");
 let stationMarkers = [];
-
 
 
 
@@ -12,6 +12,51 @@ const normalizeLatLng = async function (latLng) {
 }
 
 
+const beachball = async function (userInput) {
+      console.log("searchgQuakes called");
+
+      var searchData = {
+          latLng: userInput.latLng,
+          maxRad: userInput.maxRad,
+          startDate: userInput.startDate,
+          endDate: userInput.endDate,
+          minMag: userInput.minMag,
+          dataProvider: userInput.dataProvider
+      };
+
+
+      try {
+          const response = await fetch('/search_quakes/', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': getCookie('csrftoken')
+              },
+              body: JSON.stringify(searchData)
+          });
+
+          const result = await response.json();
+          return result.events;
+      } catch (error) {
+          alert('map.html An error occurred while searching!');
+      }
+
+  }
+
+const magToImage = async function (quake) {
+  let mag = quake.mag;
+
+  if (mag <= 1.0) quake.icon = "/static/jukbox/img/w.png";
+  else if (mag <= 2.0) quake.icon = "/static/jukbox/img/lb.png";
+  else if (mag <= 3.0) quake.icon = "/static/jukbox/img/t.png";
+  else if (mag <= 4.0) quake.icon = "/static/jukbox/img/lg.png";
+  else if (mag <= 5.0) quake.icon = "/static/jukbox/img/y.png";
+  else if (mag <= 6.0) quake.icon = "/static/jukbox/img/o.png";
+  else if (mag <= 7.0) quake.icon = "/static/jukbox/img/r.png";
+  else if (mag <= 8.0) quake.icon = "/static/jukbox/img/dr.png";
+  else quake.icon = "/static/jukbox/img/b.png";
+  return quake;
+}
 
 
 
@@ -28,7 +73,13 @@ const fetchQuakes = async function () {
   }
   console.log("userInput:", JSON.stringify(userInput, null, 2));
   let limit = 5;
-  let events = await fetchEvents(userInput,limit);
+  let events = [];
+  console.log("provider:", userInput.dataProvider)
+  if (userInput.dataProvider == 'earthquake.usgs.gov'){
+    events = await beachball(userInput);
+  } else {
+    events = await fetchEvents(userInput,limit);
+  }
   await saveDictToStoreIndexedDB("eventStore", events);
   getAllEvents().then(events => {
       console.log("Events from IndexedDB:", events);
@@ -49,39 +100,6 @@ const fetchQuakes = async function () {
 
 
 
-async function ballParts(quake) {
-  let mechanism = quake.preferredFocalMechanism();
-
-  // Fallback to first focal mechanism if preferred is not available
-  if (!mechanism && quake.focalMechanisms.length > 0) {
-    mechanism = quake.focalMechanisms[0];
-  }
-
-  if (!mechanism) {
-    console.log("No focal mechanism found for quake:", quake);
-    return null;
-  }
-
-  const tensor = mechanism?.momentTensor?.tensor;
-
-  if (!tensor) {
-    console.log("No moment tensor found for mechanism:", mechanism);
-    return null;
-  }
-
-  const components = [
-    tensor.mrr, tensor.mtt, tensor.mpp,
-    tensor.mrt, tensor.mrp, tensor.mtp
-  ];
-
-  if (components.some(c => c === null || c === undefined)) {
-    console.log("Incomplete moment tensor components for tensor:", tensor);
-    return null;
-  }
-
-  return components;
-}
-
 
 
 async function fetchEvents(userInput, limit) {
@@ -92,7 +110,8 @@ async function fetchEvents(userInput, limit) {
     return {};
   }
 
-  const DateTim = window.sp.luxon.DateTime;
+  const DateTime = window.sp.luxon.DateTime;
+
 
     let quakeQuery = new window.sp.fdsnevent.EventQuery()
   .protocol('https')
@@ -135,16 +154,15 @@ async function fetchEvents(userInput, limit) {
 
       const eventId = crypto.randomUUID(); // Random key
 
-      results[eventId] = {
+      results[eventId] = await magToImage({
         eventId,
         latLng: { lat, lng },
         depth,
         mag,
         startTime: originStartTime,
         endTime: originEndTime,
-        icon: "/static/jukbox/img/center.png"
-        //tensorParts: await ballParts(quake)
-      };
+        icon: ""
+      });
     }
 
     return results;

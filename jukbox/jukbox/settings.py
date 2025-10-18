@@ -38,6 +38,7 @@ ALLOWED_HOSTS = ["0.0.0.0","jukbox.remllez.com","localhost","192.168.1.11"]
 
 INSTALLED_APPS = [
     'jukbox',
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -48,6 +49,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -75,6 +77,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'jukbox.wsgi.application'
+ASGI_APPLICATION = "jukbox.asgi.application"
 
 
 # Database

@@ -162,10 +162,14 @@
             let thumbColor;
 
             magnitude = parseFloat(magnitude);
-            if (magnitude < 2) thumbColor = magValueDisplay.style.color = 'blue';
-            else if (magnitude < 4) thumbColor = magValueDisplay.style.color = 'green';
-            else if (magnitude < 6) thumbColor = magValueDisplay.style.color = 'orange';
-            else if (magnitude < 8) thumbColor = magValueDisplay.style.color = 'red';
+            if (magnitude <= 1)  thumbColr = magValueDisplay.style.color = 'white';
+            else if (magnitude <= 2) thumbColor = magValueDisplay.style.color = 'aqua';
+            else if (magnitude <= 3) thumbColor = magValueDisplay.style.color = 'teal';
+            else if (magnitude <= 4) thumbColor = magValueDisplay.style.color = 'lime';
+            else if (magnitude <= 5) thumbColor = magValueDisplay.style.color = 'yellow';
+            else if (magnitude <= 6) thumbColor = magValueDisplay.style.color = 'orange';
+            else if (magnitude <= 7) thumbColor = magValueDisplay.style.color = 'red';
+            else if (magnitude <= 8) thumbColor = magValueDisplay.style.color = 'maroon';
             else thumbColor = magValueDisplay.style.color = 'black';
 
             magSlider.style.setProperty('--thumb-color', thumbColor);
@@ -235,58 +239,6 @@
     setInterval(() => {
             clearStores("MapDatabase");
         }, 1000 *60 * 60); // Clear every hour 
-
-        const searchQuakes = async function () {
-            console.log("searchgQuakes called");
-            let latLng = window.circle.getLatLng();
-            var radius = document.getElementById('radiusSlider').value;
-            var startDate = startDateInput.value;
-            var endDate = endDateInput.value;
-            var magnitude = magSlider.value;
-            var clientSelect = document.getElementById('clientSelect').value;
-
-            var searchData = {
-                lat: latLng.lat,
-                lng: latLng.lng,
-                radius: radius,
-                startDate: startDate,
-                endDate: endDate,
-                magnitude: magnitude,
-                selectedClient: clientSelect
-            };
-
-
-            try {
-                const response = await fetch('/search_quakes/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify(searchData)
-                });
-
-                const result = await response.json();
-
-                const events = result.events;
-                const stations = result.stations;
-
-                await saveDictToStoreIndexedDB("eventStore", events);
-                await saveDictToStoreIndexedDB("stationStore", stations);
-                getAllEvents().then(events => {
-                    plotPoints(events);
-                });
-
-            } catch (error) {
-                alert('map.html An error occurred while searching!');
-            }
-
-            window.map.dragging.enable();
-            window.map.doubleClickZoom.enable();
-            window.map.scrollWheelZoom.enable();
-            document.querySelector('.leaflet-container').style.cursor = 'grab';
-        };
-
         function getCookie(name) {
             var cookieValue = null;
             if (document.cookie && document.cookie !== '') {
