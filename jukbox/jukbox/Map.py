@@ -9,6 +9,8 @@ import math
 import threading
 import heapq
 from datetime import datetime, timedelta
+
+import pytz
 from obspy.clients.fdsn import Client
 from obspy import UTCDateTime
 from obspy.imaging.beachball import beachball
@@ -281,8 +283,8 @@ class Map:
 
             retEvents = copy.deepcopy(self.eventsById)
             for id, ee in retEvents.items():
-                ee['startTime'] = ee['startTime'].strftime('%Y-%m-%d %H:%M:%S')
-                ee['endTime'] = ee['endTime'].strftime('%Y-%m-%d %H:%M:%S')
+                ee['startTime'] = self.toISO8601( ee['startTime'])
+                ee['endTime'] = self.toISO8601( ee['endTime'])
 
             ret = {
                 'events': retEvents,
@@ -293,7 +295,14 @@ class Map:
             print(f"Event search error: {e}")
             raise e
 
+    def toISO8601(self, dt):
+        """Convert a UTCDateTime object to an ISO 8601 formatted string."""
+        if not isinstance(dt, UTCDateTime):
+            raise ValueError("Expected UTCDateTime object.")
 
+        return dt.strftime('%Y-%m-%dT%H:%M:%S.') + f"{dt.microsecond // 1000:03d}Z"
+        
+    
 
     def scheduleFileDelete(self, filePaths, hours=1):
         """Schedule the file deletion task to run after a given number of hours."""
