@@ -317,18 +317,18 @@ class Map:
             except Exception as e:
                 print(f"Error deleting file {filePath}: {e}")
 
-    def magToEnergy(self, mag):
-        return math.pow(10, ((mag * 3) / 2) + 4.8)
 
     def magToColor(self, mag):
-        minEnergy = self.magToEnergy(3.5)
-        maxEnergy = self.magToEnergy(9.5)
-        norm = (np.log10(self.magToEnergy(mag)) - np.log10(minEnergy)) / (np.log10(maxEnergy) - np.log10(minEnergy))
-        norm = np.clip(norm, 0.0, 1.0)
-        red = 1.0 - norm
-        green = 0.5
-        blue = norm
-        return (red, green, blue)
+        match(mag):
+            case mag if mag <= 1.0: return 'white'
+            case mag if mag <= 2.0: return 'aqua'
+            case mag if mag <= 3.0: return 'teal'
+            case mag if mag <= 4.0: return 'lime'
+            case mag if mag <= 5.0: return 'yellow'
+            case mag if mag <= 6.0: return 'orange'
+            case mag if mag <= 7.0: return 'red'
+            case mag if mag <= 8.0: return 'maroon'
+            case mag if mag > 8.0: return 'black'
 
 
 def getStationDistance(station, lat, long):
