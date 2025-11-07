@@ -233,7 +233,7 @@ class Map:
                 try:
                     eventCount = 0
                     for event in events:
-                        eventId = random.randint(100000, 999999)
+                        eventId = str(event.resource_id).split("eventid=")[1].split("&")[0]
                         if event.origins == None or len(event.origins) == 0:
                             print("No origin available for this event.")
                             continue
@@ -270,7 +270,9 @@ class Map:
                             "depth": origin.depth / 1000,
                             "mag": mag,
                             "type": type,
-                            "icon": iconPath
+                            "icon": iconPath,
+                            "link": f"https://earthquake.usgs.gov/earthquakes/eventpage/{eventId}"
+
                         }
                         eventCount += 1
                         self.eventsById[eventId] = response
