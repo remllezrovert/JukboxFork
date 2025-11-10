@@ -17,7 +17,7 @@ const normalizeLatLng = async function (latLng) {
 
 
 const quakeToImage = async function (quake) {
-  let mag = quake.mag;
+    let mag = quake.mag;
   if (mag <= 1.0) quake.icon = "/static/jukbox/img/w.png";
   else if (mag <= 2.0) quake.icon = "/static/jukbox/img/a.png";
   else if (mag <= 3.0 ) quake.icon = "/static/jukbox/img/t.png";
@@ -27,6 +27,20 @@ const quakeToImage = async function (quake) {
   else if (mag <= 7.0 ) quake.icon = "/static/jukbox/img/r.png";
   else if (mag <= 8.0 ) quake.icon = "/static/jukbox/img/m.png";
   else quake.icon = '/static/jukbox/img/b.png';
+  dateId = String(quake.startTime).replace(/[-:T]/g, '').slice(0, 12);
+
+  //try {
+  //ballurl =  `https://global.shakemovie.princeton.edu/dl?evid=C${dateId}A&product=file&name=ball-red.gif`
+  //console.log("ballurl:", ballurl)
+  //const res = await fetch(ballurl);
+  //const blob = await res.blob();
+  //const dataUrl = URL.createObjectURL(blob);
+  //quake.icon = dataUrl;
+  //} catch (error) {
+  //  console.log("Error fetching beachball image:", error);
+  //}
+
+
   return quake
 };
 
@@ -150,11 +164,12 @@ async function fetchEvents(userInput, limit) {
  
     const originTime = quake.time;
 
-
-      const originStartTime = originTime.minus({ minutes: 5 }).toISO();
+      const originStartTime = originTime.toISO();
+      //const originStartTime = originTime.minus({ minutes: 5 }).toISO();
       const originEndTime = originTime.plus({ minutes: 10 }).toISO();
 
-      const eventId = crypto.randomUUID(); // Random key
+      const eventId = quake.eventId;
+      console.log("eventId:", eventId)
 
       results[eventId] = await quakeToImage({
         eventId,
@@ -163,7 +178,8 @@ async function fetchEvents(userInput, limit) {
         mag,
         startTime: originStartTime,
         endTime: originEndTime,
-        icon: "/static/jukbox/img/center.png"
+        icon: "/static/jukbox/img/center.png",
+        link: `https://ds.iris.edu/spud/event/${quake.eventId}`
       });
     }
 
@@ -204,7 +220,8 @@ async function fetchClosestStations(quake, userInput, limit = 10000, baseUrl = "
     quakeTime = DateTime.fromISO(quake.startTime);
     //const quakeStart = quakeTime.minus({ hours: 24 });
     //const quakeEnd =  quakeTime.plus({ hours: 24 });
-    const quakeStart = quakeTime.minus({minutes:5})
+    //const quakeStart = quakeTime.minus({minutes:5})
+    const quakeStart = quakeTime
     const quakeEnd = quakeTime.plus({minutes:5})
 
   const stationQuery = new window.sp.fdsnstation.StationQuery()
@@ -510,9 +527,15 @@ function plotPoints(points) {
         popupAnchor: [0, -15]
       });
 
+        let popupTxt = `Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}<br>starttime: ${point.startTime || 'N/A'}<br>endtime: ${point.endTime || 'N/A'} <br>magnitude: ${point.mag}<br>depth: ${point.depth}`
+
+        if (point.link) {
+          popupTxt += `<br><a href="${point.link}" target="_blank">More Info</a>`;
+        }
+
       const marker = L.marker([point.latLng.lat, point.latLng.lng], { icon: customIcon })
         .addTo(map)
-        .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}<br>starttime: ${point.startTime || 'N/A'}<br>endtime: ${point.endTime || 'N/A'} <br>magnitude: ${point.mag}<br>depth: ${point.depth}`, { autoPan: false });
+        .bindPopup(popupTxt, { autoPan: false });
 
       marker.on('click', function () {
         document.body.style.cursor = 'default';
@@ -640,9 +663,13 @@ function mapStation(point){
           popupAnchor: [0, -15]
         });
 
+        let popupTxt = `Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}`;
+        if (point.distanceKm) {
+          popupTxt += `<br>Distance to quake: ${point.distanceKm.toFixed(2)} km`;
+        }
         const marker = L.marker([point.latLng.lat, point.latLng.lng], { icon: customIcon })
           .addTo(map)
-          .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}`, { autoPan: false });
+          .bindPopup(popupTxt , { autoPan: false });
 
         marker.on('click', function () {
           document.body.style.cursor = 'default';
