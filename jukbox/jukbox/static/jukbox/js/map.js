@@ -29,16 +29,12 @@ const quakeToImage = async function (quake) {
   else quake.icon = '/static/jukbox/img/b.png';
   dateId = String(quake.startTime).replace(/[-:T]/g, '').slice(0, 12);
 
-  //try {
-  //ballurl =  `https://global.shakemovie.princeton.edu/dl?evid=C${dateId}A&product=file&name=ball-red.gif`
-  //console.log("ballurl:", ballurl)
-  //const res = await fetch(ballurl);
-  //const blob = await res.blob();
-  //const dataUrl = URL.createObjectURL(blob);
-  //quake.icon = dataUrl;
-  //} catch (error) {
-  //  console.log("Error fetching beachball image:", error);
-  //}
+ // try {
+ //   dataUrl = `https://ds.iris.edu/spudservice/data/${quake.eventId}`
+ // quake.icon = dataUrl;
+ // } catch (error) {
+ //   console.log("Error fetching beachball image:", error);
+ // }
 
 
   return quake
