@@ -642,7 +642,7 @@ function mapStation(point){
 
         const marker = L.marker([point.latLng.lat, point.latLng.lng], { icon: customIcon })
           .addTo(map)
-          .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}`, { autoPan: false });
+          .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}<br> Dist: ${(point.distanceKm * 111).toFixed(2)}`, { autoPan: false });
 
         marker.on('click', function () {
           document.body.style.cursor = 'default';

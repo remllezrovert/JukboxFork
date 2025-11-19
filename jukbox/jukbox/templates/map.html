@@ -134,9 +134,9 @@
 
     <div style="margin-top: 20px;">
         <label for="startDate">Start Date: </label>
-        <input type="date" id="startDate" value="2000-01-01" min="1945-01-01" max="{{ currentDate }}" />
+        <input type="date" id="startDate" value="2000-01-01" min="1945-01-01" max={{ currentDate }} />
         <label for="endDate">End Date: </label>
-        <input type="date" id="endDate" value="{{currentDate}}" min="1945-01-01" max="{{ currentDate }}" />
+        <input type="date" id="endDate" value={{ currentDate }} min="1945-01-01" max={{ currentDate }} />
         <span id="dateRangeDisplay">From 1945 to {{ currentDate }}</span>
     </div>
 
