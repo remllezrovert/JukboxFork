@@ -1,5 +1,6 @@
 from django.urls import path
 from .consumers import GraphConsumer
+from .consumers import PubSubConsumer
 ws_urlpatterns = [
-   path('ws/graph/',GraphConsumer.as_asgi()) 
+   path('ws/pubsub/<str:topic>/',PubSubConsumer.as_asgi())
 ]
