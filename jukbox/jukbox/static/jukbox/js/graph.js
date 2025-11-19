@@ -36,12 +36,16 @@ window.addEventListener("load", () => {
   function connectWebSocket() {
 
     if (ws) return;
+    let defaultws = "ws://localhost:8087"
+    //ws = new WebSocket("ws://172.22.189.137:5678");
 
-    ws = new WebSocket("ws://localhost:8087");
-
+    ws = new WebSocket(defaultws);
+    let defaultStation = "NL.HGN";
     ws.onopen = () => {
       console.log("WebSocket connected");
-      ws.send(JSON.stringify({ subscribe: "NL.HGN" }));
+
+      ws.send(JSON.stringify({ channels: true }));
+      ws.send(JSON.stringify({ subscribe: defaultStation}));
     };
 
     const checkGraphExists = (id) => {

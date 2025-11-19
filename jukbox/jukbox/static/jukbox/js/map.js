@@ -29,12 +29,12 @@ const quakeToImage = async function (quake) {
   else quake.icon = '/static/jukbox/img/b.png';
   dateId = String(quake.startTime).replace(/[-:T]/g, '').slice(0, 12);
 
-  try {
-    dataUrl = `https://ds.iris.edu/spudservice/data/${quake.eventId}`
-  quake.icon = dataUrl;
-  } catch (error) {
-    console.log("Error fetching beachball image:", error);
-  }
+ // try {
+ //   dataUrl = `https://ds.iris.edu/spudservice/data/${quake.eventId}`
+ // quake.icon = dataUrl;
+ // } catch (error) {
+ //   console.log("Error fetching beachball image:", error);
+ // }
 
 
   return quake
