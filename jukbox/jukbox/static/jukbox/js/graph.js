@@ -36,11 +36,14 @@ window.addEventListener("load", () => {
   function connectWebSocket() {
 
     if (ws) return;
-    let defaultws = "ws://localhost:8087"
-    let sub = "test"
-    //let pubSub =  `ws://jukbox.remllez.com/ws/pubsub/${sub}/`;
-    let pubSub = `ws://localhost:8001/pubsub/${sub}/`
-    //ws = new WebSocket("ws://172.22.189.137:5678");
+    //let defaultws = "ws://localhost:8087"
+
+    let urlParams=  new URLSearchParams(window.location.search);
+    sub = urlParams.get("sub");
+    if (!sub) {
+      sub = "test"
+    }
+    let pubSub =  `ws://jukbox.remllez.com/pubsub/${sub}/`;
 
     ws = new WebSocket(pubSub);
     let defaultStation = "NL.HGN";
