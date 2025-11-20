@@ -9,6 +9,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'jukbox.settings')
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket": URLRouter([
-        path("ws/pubsub/<str:topic>/", consumers.PubSubConsumer.as_asgi()),
+        path("pubsub/<str:topic>/", consumers.PubSubConsumer.as_asgi()),
     ]),
 })

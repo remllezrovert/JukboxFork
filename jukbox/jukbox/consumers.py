@@ -42,15 +42,15 @@ class PubSubConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             self.group_name,
             {
+                "message": data,
+                "sender": self.channel_name,
                 "type": "broadcast_message",
-                "message": data["message"],
-                "sender": self.channel_name,  # mark who sent it
             }
         )
+        #print(f"Received message on topic {self.topic}: {data}")
 
     async def broadcast_message(self, event):
-        if self.channel_name != event["sender"]:
-            await self.send(text_data=json.dumps({
-                "message": event["message"]
-            }))
+        if self.channel_name != event["sender"] and not event["message"].get("subscribe",None) and not event["message"].get("channels",None):
+            #print(f"Broadcasting message to topic {self.topic}: {event['message']}")
+            await self.send(text_data=json.dumps(event['message']))
 

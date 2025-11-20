@@ -38,10 +38,11 @@ window.addEventListener("load", () => {
     if (ws) return;
     let defaultws = "ws://localhost:8087"
     let sub = "test"
-    let pubSub =  `ws://jukbox.remllez.com/ws/pubsub/${sub}`
+    //let pubSub =  `ws://jukbox.remllez.com/ws/pubsub/${sub}/`;
+    let pubSub = `ws://localhost:8001/pubsub/${sub}/`
     //ws = new WebSocket("ws://172.22.189.137:5678");
 
-    ws = new WebSocket(defaultws);
+    ws = new WebSocket(pubSub);
     let defaultStation = "NL.HGN";
     ws.onopen = () => {
       console.log("WebSocket connected");
