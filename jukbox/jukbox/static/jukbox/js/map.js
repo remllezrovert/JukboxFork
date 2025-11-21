@@ -665,11 +665,8 @@ function mapStation(point){
         }
         const marker = L.marker([point.latLng.lat, point.latLng.lng], { icon: customIcon })
           .addTo(map)
-<<<<<<< HEAD
-          .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}<br> Dist: ${(point.distanceKm * 111).toFixed(2)}`, { autoPan: false });
-=======
+
           .bindPopup(popupTxt , { autoPan: false });
->>>>>>> 199774ccadc2abf06c2471bcf3cfb9fdede3dd69
 
         marker.on('click', function () {
           document.body.style.cursor = 'default';
