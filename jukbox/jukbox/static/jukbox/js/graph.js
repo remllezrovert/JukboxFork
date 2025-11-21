@@ -43,7 +43,7 @@ window.addEventListener("load", () => {
     if (!sub) {
       sub = "test"
     }
-    let pubSub =  `ws://jukbox.remllez.com/pubsub/${sub}/`;
+    let pubSub =  `wss://ws.jukbox.remllez.com/pubsub/${sub}/`;
 
     ws = new WebSocket(pubSub);
     let defaultStation = "NL.HGN";
