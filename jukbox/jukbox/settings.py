@@ -31,7 +31,7 @@ SECRET_KEY = 'django-insecure-y7p9n31*t@s__2%9)f8&4=yekxcir9z)lt!3p$51!jpyh@vza0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["0.0.0.0","jukbox.remllez.com","localhost","192.168.1.11"]
+ALLOWED_HOSTS = ["0.0.0.0","jukbox.remllez.com","localhost","ws.jukbox.remllez.com"]
 
 
 # Application definition
@@ -62,7 +62,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            "hosts": [("jukbox-redis", 6379)],
         },
     },
 }
