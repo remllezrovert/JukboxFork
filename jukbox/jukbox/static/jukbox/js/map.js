@@ -589,10 +589,25 @@ function plotStations(points, quake) {
   let maxGraphCount = 5;
   stationMarkers.forEach(marker => map.removeLayer(marker));
   stationMarkers = [];
+  let stationCount = 0;
+  let numberToPlot = 5;
 
+
+// should plot on map
+for (let point of points){
+    mapStation(point);
+    stationCount++
+    if (stationCount >= numberToPlot){
+      break;
+    }
+
+}
+
+
+  // Removed after CORS changes to iris
+  /*
   const waveForms = fetchWaveformsBulk(points, quake);
   document.querySelector("#myseismograph").innerHTML = "";
-
   let graphCount = 0; 
   waveForms.then(waveforms => {
     waveforms.forEach(waveform => {
@@ -640,6 +655,7 @@ waveform.querySeismograms(true)
 
     });
   });
+*/
 }
 
 
@@ -660,16 +676,13 @@ function mapStation(point){
         });
 
         let popupTxt = `Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}`;
+          popupTxt += `<br>Station: ${point.seedId}`;
         if (point.distanceKm) {
           popupTxt += `<br>Distance to quake: ${point.distanceKm.toFixed(2)} km`;
         }
         const marker = L.marker([point.latLng.lat, point.latLng.lng], { icon: customIcon })
           .addTo(map)
-<<<<<<< HEAD
-          .bindPopup(`Lat: ${point.latLng.lat}<br>Lng: ${point.latLng.lng}<br> Dist: ${(point.distanceKm * 111).toFixed(2)}`, { autoPan: false });
-=======
           .bindPopup(popupTxt , { autoPan: false });
->>>>>>> 199774ccadc2abf06c2471bcf3cfb9fdede3dd69
 
         marker.on('click', function () {
           document.body.style.cursor = 'default';

@@ -2,6 +2,7 @@ import json
 import os
 import io
 import time
+import traceback
 from jukbox.Map import Map
 from datetime import datetime
 from django.conf import settings
@@ -174,8 +175,18 @@ def search_quakes(request):
         print("Received POST request for earthquake search")
         try:
             map = Map()
-            # Get the data from the POST request (JSON format)
-            search_data = json.loads(request.body)
+            #search_data = json.loads(request.body)
+            if request.method != "POST":
+                return JsonResponse({"error": "POST required"}, status=405)
+
+            if not request.body:
+                return JsonResponse({"error": "Empty request body"}, status=400)
+
+            try:
+                search_data = json.loads(request.body.decode("utf-8"))
+            except Exception as e:
+                return JsonResponse({"error": str(e)}, status=400)
+
 
             provider = search_data.get('selectedClient')
 
@@ -201,10 +212,13 @@ def search_quakes(request):
             return JsonResponse(response_data, status=200)
 
         except Exception as e:
-            # If something goes wrong, return an error message (without displaying it)
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-
-            
+            # Print full traceback to logs
+            traceback.print_exc()
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=400)
+                    
             
 def fetch_waves(request):
     if request.method == 'POST':

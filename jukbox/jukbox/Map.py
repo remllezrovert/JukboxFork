@@ -39,7 +39,7 @@ class kClosest():
 
     def append(self, item):
         distance = item.get('distance')
-        wrapper = (-1 * distance, item)
+        wrapper = (-1 * distance, item.get('seedId'),item)
 
         if len(self.arr) < self.num:
             heapq.heappush(self.arr, wrapper)
@@ -65,9 +65,10 @@ class Map:
         self.scheduler = BackgroundScheduler()
         self.scheduler.start()
 
-    def getEvents(self, lat, lon, maxRad, client="IRIS"):
+    def getEvents(self, lat, lon, maxRad, client="USGS"):
         #print('called getEvents')
-        client = Client(client)
+        client = Client(client) ##force usgs for current config, change if iris on server is wanted
+        #NOTE: This will need to be removed if IRIS is wanted again on server side
         try:
             out = client.get_events(
                 latitude=lat,
@@ -86,7 +87,7 @@ class Map:
             raise e
             return []
 
-    def getStations(self, maxRad, attempt=1, maxAttempts=8) -> list:
+    def getStations(self, maxRad, attempt=1, maxAttempts=8, events=None) -> list:
         self.stationSearchResults = {}
         client = Client("IRIS")
         maxCount = 128
@@ -94,14 +95,17 @@ class Map:
         if not self.eventsById:
             print("getStations detected no events in response queue.")
             return {}
+        if attempt == 1:
+            self.eventsById = events
         try:
             bulkParams = []
             for eventId, currentEvent in self.eventsById.items():
                 self.stationSearchResults[eventId] = kClosest(eventId, 5)
-                start = currentEvent.get("starttime")
-                end = currentEvent.get("endtime")
+                start = currentEvent.get("startTime")
+                end = currentEvent.get("endTime")
                 if not start or not end:
                     print(f"Skipping event {eventId} due to missing start or end time")
+                    print(currentEvent)
                     continue
                 nStr = ",".join(self.approvedNetworks)
                 cStr = ",".join(self.approvedChannels)
@@ -129,7 +133,7 @@ class Map:
 
             for t in threads:
                 t.join()
-
+            print(self.stationSearchResults)
             return self.stationSearchResults
         except FDSNNoDataException as e:
             print(f"No data found (204). Attempt {attempt}/{maxAttempts}")
@@ -150,8 +154,8 @@ class Map:
                 continue
             for eventId, event in self.eventsById.items():
                 stationsForEvent = 0
-                starttime = event.get('starttime')
-                endtime = event.get('endtime')
+                starttime = event.get('startTime')
+                endtime = event.get('endTime')
                 for channel in station.channels:
                     if stationsForEvent > 1:
                         break
@@ -187,8 +191,8 @@ class Map:
                                 'distance': distance,
                                 'elev': elev,
                                 'depth': depth,
-                                'starttime': starttime.isoformat(),
-                                'endtime': endtime.isoformat()
+                                'startTime': starttime.isoformat(),
+                                'endTime': endtime.isoformat()
                             })
                         break
                     except Exception as e:
@@ -204,7 +208,9 @@ class Map:
                 print("No earthquakes found in this area!")
             if self.selectedClient != "USGS":
                 for event in events:
-                    eventId = random.randint(100000, 999999)
+
+                    eventId = str(event.resource_id).split("eventid=")[1].split("&")[0]
+                    #eventId = random.randint(100000, 999999)
                     origin = event.preferred_origin()
                     if origin is None:
                         print("No origin available for this event.")
@@ -284,6 +290,7 @@ class Map:
                 print(f"Error scheduling file delete: {e}")
 
             retEvents = copy.deepcopy(self.eventsById)
+            self.getStations(self.currentRadius, events=retEvents) ## move this later
             for id, ee in retEvents.items():
                 ee['startTime'] = self.toISO8601( ee['startTime'])
                 ee['endTime'] = self.toISO8601( ee['endTime'])
@@ -362,9 +369,11 @@ def formatWaveforms(stream):
             'amplitude': amplitude.tolist(),
             'station': trace.stats.station,
             'network': trace.stats.network,
-            'starttime': trace.stats.starttime.isoformat(),
+            'startTime': trace.stats.starttime.isoformat(),
             'sampling_rate': trace.stats.sampling_rate
         }
         waveforms.append(waveform)
 
     return waveforms
+
+    

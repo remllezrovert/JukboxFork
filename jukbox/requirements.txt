@@ -11,6 +11,7 @@ pywebview==5.4
 RangeSlider==2023.7.2
 obspy==1.4.1
 folium==0.20.0
-channels==4.3.1
+channels_redis>=4.0.0
+channels>=4.0.0
 pytz==2025.2
 
