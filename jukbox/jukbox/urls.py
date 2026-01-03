@@ -29,6 +29,7 @@ urlpatterns = [
     path('record/', views.record_view, name='record-view'),
     path('stream-inline', views.stream_spectrogram_inline, name='stream-inline'),
     path('search_quakes/', views.search_quakes, name='search_quakes'),
+    path('stations_to_waves/', views.stations_to_waves, name='stations_to_waves'),
     path('map/', views.mapView, name='mapView'),
     path('graph/', views.graph, name="graph")
 

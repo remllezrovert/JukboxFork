@@ -2,6 +2,18 @@
 indexedDB.deleteDatabase("MapDatabase");
 
 console.log("map.js loaded");
+document.addEventListener('DOMContentLoaded', () => {
+  console.log(
+  document.getElementById('endDate'),
+  document.getElementById('startDate')
+);
+
+  const today = new Date().toISOString().split("T")[0];
+
+  document.getElementById('endDate').max = today;
+  document.getElementById('startDate').max = today;
+  document.getElementById('endDate').value = today;
+});
 let stationMarkers = [];
 
 
@@ -602,6 +614,10 @@ for (let point of points){
     }
 
 }
+stationsToWaves(points).then(waveList => {
+  console.log("waveList from stationsToWaves:", waveList);
+});
+}
 
 
   // Removed after CORS changes to iris
@@ -656,12 +672,35 @@ waveform.querySeismograms(true)
     });
   });
 */
+
+
+
+
+
+
+async function stationsToWaves(stations) {
+
+  const DateTime = window.sp.luxon.DateTime;
+  let stationsWithISO = stations.map(station => {
+  station.startTime = DateTime.fromMillis(station.startTime.ts, { zone: 'UTC' }).toISO();
+  station.endTime = DateTime.fromMillis(station.endTime.ts, { zone: 'UTC' }).toISO();
+  // Clean up the Z and change to the '+00:00' for python
+  station.startTime = station.startTime.replace("Z", "+00:00");
+  station.endTime = station.endTime.replace("Z", "+00:00");
+  return station;
+  });
+const response = fetch('/stations_to_waves/', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': getCookie('csrftoken')
+              },
+              body: JSON.stringify(stationsWithISO)
+          });
+      console.log(JSON.stringify(stationsWithISO));
+      console.log("stationsToWaves response:", response);
+      return response;
 }
-
-
-
-      
-
 
 
 

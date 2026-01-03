@@ -4,6 +4,7 @@ import io
 import time
 import traceback
 from jukbox.Map import Map
+from jukbox.Map import stationsToWaves
 from datetime import datetime
 from django.conf import settings
 from django.shortcuts import render, redirect
@@ -223,4 +224,19 @@ def search_quakes(request):
 def fetch_waves(request):
     if request.method == 'POST':
         print("Received POST request for fetching waves")
+
+@csrf_exempt
+def stations_to_waves(request):
+    print("stations_to_waves called")
+    """Convert a list of stations to their corresponding waveforms."""
+    if request.method != "POST":
+            return JsonResponse({"error": "POST required"}, status=405)
+    if not request.body:
+        return JsonResponse({"error": "Empty request body"}, status=400)
+
+    search_data = json.loads(request.body.decode("utf-8"))
+    waveList = stationsToWaves(search_data)
+    print("Received POST request for stations to waves")
+    return JsonResponse(waveList, safe=False)
+
 

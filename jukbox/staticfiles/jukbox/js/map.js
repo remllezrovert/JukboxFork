@@ -1,6 +1,19 @@
 indexedDB.deleteDatabase("MapDatabase");
 
 console.log("map.js loaded");
+document.addEventListener('DOMContentLoaded', () => {
+  console.log(
+  document.getElementById('endDate'),
+  document.getElementById('startDate')
+);
+
+  const today = new Date().toISOString().split("T")[0];
+
+  document.getElementById('endDate').max = today;
+  document.getElementById('startDate').max = today;
+  document.getElementById('endDate').value = today;
+});
+
 let stationMarkers = [];
 
 

@@ -109,16 +109,28 @@
 
 <body>
     <div id="map" style="height: 600px;"></div>
+<div style="margin-top: 20px;">
+        <label for="radiusSlider">Circle Radius: </label>
+        <input type="range" id="radiusSlider" min="1" max="1000" value="10" step="10" style="width: 40%;" />
+        <span id="radiusValue">300 km</span>
+        <br>
+
+
+        <label for="magSlider">Min Magnitude: </label>
+        <input type="range" id="magSlider" min="1" max="10" value="3" step="0.1" style="width: 40%;" />
+        <span id="magValue">3</span>
+    </div>
+
+
+
 
     <div style="margin-top: 20px;">
-        <label for="clientSelect">Select Client: </label>
+        <label for="clientSelect">Source: </label>
         <select id="clientSelect">
             <option value="service.iris.edu" selected>IRIS</option>
             <option value="earthquake.usgs.gov">USGS</option>
         </select>
-    </div>
 
-    <div style="margin-top: 20px;">
         <label for="channelSelect">Channel: </label>
         <select id="channelSelect">
             <option value="BHZ" selected>BHZ</option>
@@ -126,30 +138,13 @@
             <option value="HHZ">HHZ</option>
         </select>
 
-    <div style="margin-top: 20px;">
-        <label for="radiusSlider">Circle Radius: </label>
-        <input type="range" id="radiusSlider" min="1" max="1000" value="10" step="10" style="width: 100%;" />
-        <span id="radiusValue">300 km</span>
-    </div>
-
-    <div style="margin-top: 20px;">
-        <label for="startDate">Start Date: </label>
         <input type="date" id="startDate" value="2000-01-01" min="1945-01-01" max={{ currentDate }} />
-        <label for="endDate">End Date: </label>
+        <label for="endDate"> to </label>
         <input type="date" id="endDate" value={{ currentDate }} min="1945-01-01" max={{ currentDate }} />
-        <span id="dateRangeDisplay">From 1945 to {{ currentDate }}</span>
-    </div>
-
-    <div style="margin-top: 20px;">
-        <label for="magSlider">Minimum magnitude: </label>
-        <input type="range" id="magSlider" min="1" max="10" value="3" step="0.1" style="width: 100%;" />
-        <span id="magValue">3</span>
-    </div>
-
-    <div style="margin-top: 20px;">
         <button id="searchButton" onclick="fetchQuakes()">Search</button>
     </div>
 
+    
     <div id="myseismograph"></div>
 
     <script type="text/javascript">

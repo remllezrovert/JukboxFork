@@ -377,3 +377,22 @@ def formatWaveforms(stream):
     return waveforms
 
     
+
+
+def stationsToWaves(stations: list):
+    """Convert a list of station dictionaries to their corresponding waveforms."""
+    waves = []
+    client = Client("IRIS")
+    bulkParams = []
+    for station in stations:
+        bulkParams.append(
+            (station.get('network',"*"), station.get('station', "*"), "*", station.get('channel', "BHZ"), station['startTime'], station['endTime'])
+            )
+
+    waves = client.get_waveforms_bulk(bulkParams)
+    ret = []
+    for wave in waves:
+        ret.append(formatWaveforms(wave))
+    print(ret)
+    return ret
+    

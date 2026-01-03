@@ -1,9 +1,20 @@
+
+
+
+
+
+
+
+let urlParams=  new URLSearchParams(window.location.search);
+
+
+
 window.addEventListener("load", () => {
+  let urlParams=  new URLSearchParams(window.location.search);
+
   const sp = window.sp;
   const { DateTime } = sp.luxon;
 
-  let ws = null;
-  let reconnectTimeout = null;
 
 
 //testing
@@ -26,23 +37,91 @@ window.addEventListener("load", () => {
 //console.log('Found at:', path);
 //
 //end testing
-
-
-
-
-
   let graphs = new Map();
 
-  function connectWebSocket() {
+let c1 = document.getElementById("column1");
+let c2 = document.getElementById("column2");
 
+document.getElementById("column2");
+
+
+
+
+const subParams = urlParams.get("sub").split(",");
+    if (!subParams) {
+      subParams = ['test']
+    }
+    for (sub of subParams){
+      connectWebSocket(sub,c1,c2);
+    }
+
+
+  raspberryShakeLiveEmbeds(c1,c2);
+
+ 
+function raspberryShakeLiveEmbeds(c1,c2) {
+
+let  pi = urlParams.get("pi");
+for (let piStream of pi.split(",")) {
+  piStream = piStream.replace(/\./g, "/");
+
+  const wrapper = document.createElement("div");
+  wrapper.setAttribute("style", "width:90%; height:90%; overflow:hidden; position:relative;");
+
+  wrapper.classList.add("image-item"); // CSS applies here
+
+  const iframe = document.createElement("iframe");
+  iframe.width = 500;
+  iframe.height = 350;
+  iframe.src = `https://dataview.raspberryshake.org/#/embed/${piStream}`;
+  iframe.style.border = "0";
+
+  wrapper.appendChild(iframe);
+  c1.appendChild(wrapper);
+}
+dragula([c1, c2], {
+  moves: (el, source, handle, sibling) => {
+    return el.classList.contains("image-item");
+  }
+});
+
+}
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  function connectWebSocket(sub, c1,c2) {
+
+    let ws = null;
+    let reconnectTimeout = null;
     if (ws) return;
     //let defaultws = "ws://localhost:8087"
 
-    let urlParams=  new URLSearchParams(window.location.search);
-    sub = urlParams.get("sub");
-    if (!sub) {
-      sub = "test"
-    }
+    
     let pubSub =  `wss://ws.jukbox.remllez.com/pubsub/${sub}/`;
 
     ws = new WebSocket(pubSub);
@@ -65,6 +144,7 @@ window.addEventListener("load", () => {
     };
 
     ws.onmessage = (event) => {
+
       let seis = null;
       const msg = JSON.parse(event.data);
       console.log("Received message:", msg);
@@ -115,6 +195,26 @@ window.addEventListener("load", () => {
       }
     };
 
+        const rtConfig = new sp.seismographconfig.SeismographConfig();
+        const rtDisp = sp.animatedseismograph.createRealtimeDisplay(rtConfig);
+        rtConfig.title = "Live Stream";
+        //const displayDiv = document.querySelector("#display");
+
+        rtDisp.animationScaler.minRedrawMillis = sp.animatedseismograph.calcOnePixelDuration(rtDisp.organizedDisplay);
+        rtDisp.animationScaler.animate();
+
+        //displayDiv.appendChild(rtDisp.organizedDisplay);
+        //displayDiv.style.width = "90%";
+        rtDisp.organizedDisplay.classList.add("image-item");
+        c2.appendChild(rtDisp.organizedDisplay);
+        //const graphOnly = rtDisp.organizedDisplay.querySelector('sp-organized-display-item[plottype="seismograph"]');
+        //c2.appendChild(graphOnly);
+
+  window.addEventListener("beforeunload", () => {
+      if (ws) ws.close(1000, "Page unload");
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    });
+
     ws.onclose = (event) => {
       console.log("WebSocket closed", event.code, event.reason);
       ws = null;
@@ -126,21 +226,6 @@ window.addEventListener("load", () => {
 
     ws.onerror = (err) => console.error("WebSocket error:", err);
   }
-        const rtConfig = new sp.seismographconfig.SeismographConfig();
-        const rtDisp = sp.animatedseismograph.createRealtimeDisplay(rtConfig);
-        rtConfig.title = "Live Stream";
-        const displayDiv = document.querySelector("#display");
-
-        rtDisp.animationScaler.minRedrawMillis = sp.animatedseismograph.calcOnePixelDuration(rtDisp.organizedDisplay);
-        rtDisp.animationScaler.animate();
-
-        displayDiv.appendChild(rtDisp.organizedDisplay);
 
 
-  connectWebSocket();
 
-  window.addEventListener("beforeunload", () => {
-    if (ws) ws.close(1000, "Page unload");
-    if (reconnectTimeout) clearTimeout(reconnectTimeout);
-  });
-});
